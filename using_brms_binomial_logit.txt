@@ -1,0 +1,45 @@
+> summary(brm_test)
+ Family: binomial 
+  Links: mu = logit 
+Formula: PtResp | trials(35) ~ 1 + Condition * LogLLA + Condition * LogBaserate + (1 + Condition * LogLLA + Condition * LogBaserate | PtID) 
+   Data: data_SR_AM2 (Number of observations: 1876) 
+  Draws: 4 chains, each with iter = 4000; warmup = 1000; thin = 1;
+         total post-warmup draws = 12000
+
+Group-Level Effects: 
+~PtID (Number of levels: 41) 
+                                                Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+sd(Intercept)                                       0.05      0.04     0.00     0.14 1.00     5456     6188
+sd(ConditionSR)                                     0.07      0.06     0.00     0.21 1.00     7035     6601
+sd(LogLLA)                                          0.07      0.02     0.03     0.11 1.00     4504     4112
+sd(LogBaserate)                                     0.15      0.05     0.06     0.25 1.00     2814     1521
+sd(ConditionSR:LogLLA)                              0.06      0.03     0.00     0.13 1.00     2915     4793
+sd(ConditionSR:LogBaserate)                         0.20      0.09     0.02     0.39 1.00     2611     3018
+cor(Intercept,ConditionSR)                         -0.04      0.38    -0.73     0.69 1.00    15545     9094
+cor(Intercept,LogLLA)                              -0.02      0.37    -0.71     0.68 1.00     1579     3684
+cor(ConditionSR,LogLLA)                            -0.05      0.38    -0.74     0.68 1.00     1725     4272
+cor(Intercept,LogBaserate)                         -0.15      0.38    -0.78     0.64 1.00     1666     3950
+cor(ConditionSR,LogBaserate)                        0.02      0.37    -0.69     0.71 1.00     1876     3826
+cor(LogLLA,LogBaserate)                            -0.57      0.23    -0.91    -0.03 1.00     5132     4492
+cor(Intercept,ConditionSR:LogLLA)                   0.03      0.38    -0.69     0.73 1.00     5439     7554
+cor(ConditionSR,ConditionSR:LogLLA)                -0.04      0.38    -0.72     0.68 1.00     5765     8483
+cor(LogLLA,ConditionSR:LogLLA)                      0.08      0.34    -0.58     0.72 1.00    10054     9957
+cor(LogBaserate,ConditionSR:LogLLA)                -0.16      0.35    -0.76     0.58 1.00     6923     9398
+cor(Intercept,ConditionSR:LogBaserate)             -0.08      0.37    -0.75     0.65 1.00     4242     6362
+cor(ConditionSR,ConditionSR:LogBaserate)           -0.15      0.38    -0.79     0.63 1.00     4189     7246
+cor(LogLLA,ConditionSR:LogBaserate)                 0.03      0.33    -0.62     0.64 1.00     6112     7833
+cor(LogBaserate,ConditionSR:LogBaserate)           -0.21      0.33    -0.74     0.52 1.00     5480     7356
+cor(ConditionSR:LogLLA,ConditionSR:LogBaserate)    -0.17      0.35    -0.79     0.56 1.00     6598     8546
+
+Population-Level Effects: 
+                        Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+Intercept                  -4.36      0.05    -4.46    -4.26 1.00    11744     9287
+ConditionSR                -0.06      0.08    -0.22     0.09 1.00    11811     9686
+LogLLA                      0.18      0.02     0.14     0.22 1.00     8835     9361
+LogBaserate                 0.45      0.04     0.37     0.54 1.00     9497     9636
+ConditionSR:LogLLA         -0.01      0.03    -0.07     0.05 1.00    10305     9600
+ConditionSR:LogBaserate    -0.03      0.07    -0.17     0.11 1.00     8215     8576
+
+Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+and Tail_ESS are effective sample size measures, and Rhat is the potential
+scale reduction factor on split chains (at convergence, Rhat = 1).

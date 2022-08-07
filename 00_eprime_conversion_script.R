@@ -1,16 +1,20 @@
+# Install rprime package
+#install.packages("rprime")
+
+# R's equivalent of fstring, 'glue'
+#install.packages('glue')
 
 
-install.packages("rprime")
-
+# Load rprime
 library(rprime)
-
-
-
-
+library(glue)
+library(xlsx)
 
 
 #Read in Eprime text file
-A<- read_eprime("RiskyGain9Aa_scan-001-214.txt")
+filename <- ('Bayes19a_scan-001-123')
+
+A <- read_eprime(glue("./data/NSF_study_data/raw_data/txt_files{filename}.txt"))
 
 #Extract and parse the log-frames from the file
 B <- FrameList (A)
@@ -18,9 +22,12 @@ B <- FrameList (A)
 #Convert to data frame
 DF <- to_data_frame(B)
 
-#export as csv
-write.csv(DF, "S:\\MNHS-SPP\\Circadia\\Projects\\Current projects\\Drummond_2018_ONRG_DecisionMaking\\Researchers\\Jeryl\\Lottery Choice Paper\\Converted CSV Data files\\RiskyGain9Aa-001-TSD-1-4.csv", row.names=TRUE)
 
+#export as csv
+output_path <-  glue("./data/NSF_study_data/converted_data/{filename}.xlsx")
+
+# Export file as xlsx
+write.xlsx(DF, output_path)
 
 
 

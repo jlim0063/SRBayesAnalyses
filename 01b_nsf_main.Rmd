@@ -1,0 +1,116 @@
+---
+title: "**NSF study Main Data Analyses**"
+output: html_notebook
+---
+### General Instructions
+* Execute chunk by placing cursor within chunk and pressing *Ctrl+Shift+Enter*. 
+* Execute a single line of code by placing cursor on that line, and pressing *Ctrl+Enter*
+* Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+* When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```{r,echo=FALSE}
+
+## Load Packages
+
+library(dplyr)
+library(readxl)
+library(tidyr)
+library(glue)
+
+
+# Visualisation libraries
+library(ggplot2)
+library(ggsignif) # For significance bars on ggplots
+library(visreg)
+
+library(egg) # for ggarrange (panelling multiple ggplots)
+library(lme4)
+library(lmerTest)
+library(brms)
+library(emmeans)
+
+library(aod)
+library(car)   # For Chi-square test of Coefficient Equality `linearHypothesis`
+library(MuMIn)
+library(performance) # for check_collinearity function
+library(sjPlot) # This gives a summary output of the model in APA style. Use `tab_model(model)`
+
+
+library(piecewiseSEM)
+library(DHARMa)
+
+
+# Turn off scientific notation
+options(scipen = 20)
+
+```
+
+# Data Management
+
+```{r,echo=FALSE}
+
+# Read data
+data.nsf <- read_excel("./data/NSF_study_data/data_master.xlsx")
+
+
+# Check for duplicates
+data.nsf[duplicated(data.nsf),]
+
+# Check variable names 
+names(data.nsf)
+
+
+```
+
+
+
+## Factorize and label Condition and Session
+
+```{r,echo=FALSE}
+# Convert Condition to factor
+typeof(data.nsf$condition);
+data.nsf$condition <- as.factor(data.nsf$condition);
+
+# Convert session to factor variable
+data.nsf$session <- factor(data.nsf$session,
+                           levels = c(1, 2),
+                           labels = c("1st", "2nd"));
+                     
+
+# Create a subset with just SR and WR data, for now. 
+data.nsf.sr <- subset(data.nsf, condition != 'TSD')
+
+
+```
+
+---
+
+# **Pooled** Analyses
+
+## Count number of participants who did the SR session
+
+```{r,echo=FALSE}
+SR_trials <- subset(data_SR, Condition == 'SR')
+length(unique(SR_trials$PtID))
+
+```
+
+```{r, echo=FALSE}
+wr_pts <- unique(data.nsf[data.nsf$condition == 'WR', ]$PtID)
+tsd_pts <- unique(data.nsf[data.nsf$condition == 'TSD', ]$PtID)
+sr_pts <- unique(data.nsf[data.nsf$condition == 'SR', ]$PtID)
+
+wr_pts <- sort(wr_pts, decreasing = FALSE);
+tsd_pts <- sort(tsd_pts, decreasing = FALSE);
+sr_pts <- sort(sr_pts, decreasing = FALSE);
+
+print(wr_pts)
+tsd_pts
+sr_pts
+```
+
+
+
+
+
+

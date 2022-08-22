@@ -17,7 +17,6 @@ library(readxl)
 library(tidyr)
 
 
-library(JWileymisc)
 # Visualisation libraries
 library(ggplot2)
 library(ggsignif) # For significance bars on ggplots
@@ -50,11 +49,12 @@ options(scipen = 20)
 ```{r,echo=FALSE}
 
 # Read data
-data <- read.csv("data_master.csv")
+data <- read.csv("./data/BDS_study_data/data_master.csv")
 
 
 # Check for duplicates
 data[duplicated(data),]
+
 
 ```
 

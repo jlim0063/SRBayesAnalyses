@@ -25,8 +25,10 @@ library(visreg)
 library(egg) # for ggarrange (panelling multiple ggplots)
 library(lme4)
 library(lmerTest)
+
 library(brms)
 library(emmeans)
+
 
 library(aod)
 library(car)   # For Chi-square test of Coefficient Equality `linearHypothesis`
@@ -39,6 +41,8 @@ library(piecewiseSEM)
 library(DHARMa)
 
 
+install.packages('robustlmm')
+
 # Turn off scientific notation
 options(scipen = 20)
 
@@ -48,12 +52,12 @@ options(scipen = 20)
 
 ```{r,echo=FALSE}
 
-# Read data
-data <- read.csv("./data/BDS_study_data/data_master.csv")
+# Read bds.data
+bds.data <- read.csv("./data/BDS_study_data/data_master.csv")
 
 
 # Check for duplicates
-data[duplicated(data),]
+bds.data[duplicated(bds.data),]
 
 
 ```
@@ -65,13 +69,13 @@ data[duplicated(data),]
 ```{r,echo=FALSE}
 # Convert Condition to factor
 
-data$Condition <- factor(data$Condition,
+bds.data$Condition <- factor(bds.data$Condition,
                          levels = c(1, 2, 3),
                          labels = c("WR", "SR", "CM")
 )
 
 # convert Session to factor
-data$SessionTime <- factor(data$SessionTime,
+bds.data$SessionTime <- factor(bds.data$SessionTime,
                        levels = c(1,2),
                        labels = c("AM", "PM")
                        )
@@ -79,54 +83,55 @@ data$SessionTime <- factor(data$SessionTime,
 
 ```
 
-## Subset data
+## Subset bds.data
 
 ```{r,echo=FALSE}
 
-# Subset data into SR and CM
-data_SR =  subset(data, Condition == 'WR'|Condition == 'SR')
-data_CM =  subset(data, Condition == 'WR'| Condition == 'CM')
+# Subset bds.data into SR and CM
+bds.data.SR =  subset(bds.data, Condition == 'WR'|Condition == 'SR')
+bds.data.CM =  subset(bds.data, Condition == 'WR'| Condition == 'CM')
 
 # Split each subset further into AM and PM sessions
 
-data_SR_AM = subset(data_SR, SessionTime == 'AM')
-data_SR_PM = subset(data_SR, SessionTime == 'PM')
-data_CM_AM = subset(data_CM, SessionTime == 'AM')
-data_CM_PM = subset(data_CM, SessionTime == 'PM')
+bds.data.SR.AM = subset(bds.data.SR, SessionTime == 'AM')
+bds.data.SR.PM = subset(bds.data.SR, SessionTime == 'PM')
+bds.data.CM.AM = subset(bds.data.CM, SessionTime == 'AM')
+bds.data.CM.PM = subset(bds.data.CM, SessionTime == 'PM')
 
 
-# Create subset of  SR data without the NoBrainers
-data_SR2 <- subset(data_SR, NoBrainers == 0 )
-data_CM2 <- subset(data_CM, NoBrainers == 0 )
+# Create subset of  SR bds.data without the NoBrainers
+bds.data.SR2 <- subset(bds.data.SR, NoBrainers == 0 )
+bds.data.CM2 <- subset(bds.data.CM, NoBrainers == 0 )
 # Split each subset into AM and PM sessions
-data_SR_AM2 <- subset(data_SR2, SessionTime == 'AM')
-data_SR_PM2 <- subset(data_SR2, SessionTime == 'PM')
+bds.data.SR.AM2 <- subset(bds.data.SR2, SessionTime == 'AM')
+bds.data.SR.PM2 <- subset(bds.data.SR2, SessionTime == 'PM')
 # Split each subset into AM and PM sessions
-data_CM_AM2 <- subset(data_CM2, SessionTime == 'AM')
-data_CM_PM2 <- subset(data_CM2, SessionTime == 'PM')
+bds.data.CM.AM2 <- subset(bds.data.CM2, SessionTime == 'AM')
+bds.data.CM.PM2 <- subset(bds.data.CM2, SessionTime == 'PM')
 
 
-# Create subset of SR/CM data with HARD trials
+# Create subset of SR/CM bds.data with HARD trials
 
-data_SR3 <- subset(data_SR, IsEasy == 0)
-data_CM3 <- subset(data_CM, IsEasy == 0)
+bds.data.SR3 <- subset(bds.data.SR, IsEasy == 0)
+bds.data.CM3 <- subset(bds.data.CM, IsEasy == 0)
 # Split each subset into AM and PM sessions
-data_SR_AM3 <- subset(data_SR3, SessionTime == 'AM')
-data_SR_PM3 <- subset(data_SR3, SessionTime == 'PM')
+bds.data.SR.AM3 <- subset(bds.data.SR3, SessionTime == 'AM')
+bds.data.SR.PM3 <- subset(bds.data.SR3, SessionTime == 'PM')
 # Split each subset into AM and PM sessions
-data_CM_AM3 <- subset(data_CM3, SessionTime == 'AM')
-data_CM_PM3 <- subset(data_CM3, SessionTime == 'PM')
+bds.data.CM.AM3 <- subset(bds.data.CM3, SessionTime == 'AM')
+bds.data.CM.PM3 <- subset(bds.data.CM3, SessionTime == 'PM')
 
-# Creat subset of SR/CM data with Easy trials
+# Creat subset of SR/CM bds.data with Easy trials
 
-data_SR4 <- subset(data_SR, IsEasy == 1)
-data_CM4 <- subset(data_CM, IsEasy == 1)
+bds.data.SR4 <- subset(bds.data.SR, IsEasy == 1)
+bds.data.CM4 <- subset(bds.data.CM, IsEasy == 1)
 # Split each subset into AM and PM sessions
-data_SR_AM4 <- subset(data_SR4, SessionTime == 'AM')
-data_SR_PM4 <- subset(data_SR4, SessionTime == 'PM')
+bds.data.SR.AM4 <- subset(bds.data.SR4, SessionTime == 'AM')
+bds.data.SR.PM4 <- subset(bds.data.SR4, SessionTime == 'PM')
 # Split each subset into AM and PM sessions
-data_CM_AM4 <- subset(data_CM4, SessionTime == 'AM')
-data_CM_PM4 <- subset(data_CM4, SessionTime == 'PM')
+bds.data.CM.AM4 <- subset(bds.data.CM4, SessionTime == 'AM')
+bds.data.CM.PM4 <- subset(bds.data.CM4, SessionTime == 'PM')
+
 
 
 ```
@@ -139,8 +144,8 @@ data_CM_PM4 <- subset(data_CM4, SessionTime == 'PM')
 ## Count number of participants who did the SR session
 
 ```{r,echo=FALSE}
-SR_trials <- subset(data_SR, Condition == 'SR')
-length(unique(SR_trials$PtID))
+SR_trials <- subset(bds.data.SR, Condition == 'SR')
+length(unique(SR_trials$PtID)); rm(SR_trials)
 ```
 
 ## Manipulation check
@@ -148,34 +153,34 @@ length(unique(SR_trials$PtID))
 ```{r,echo=FALSE}
 
 # Subset only necessary variables
-data_SR_KSS <-data_SR[c("PtID", "SessionTime", "Condition", "StartKSS")]
+bds.data.SR_KSS <-bds.data.SR[c("PtID", "SessionTime", "Condition", "StartKSS")]
 
 # Keep unique values
-data_SR_KSS <- distinct(data_SR_KSS)
+bds.data.SR_KSS <- distinct(bds.data.SR_KSS)
 
-# Preview data
-data_SR_KSS
+# Preview bds.data
+bds.data.SR_KSS
 
 ```
 
 ### Normality check of StartKSS variable
 ```{r,echo=FALSE}
 
-KSS_plot <- ggplot(data_SR_KSS, aes(x = StartKSS)) + geom_density()
+KSS_plot <- ggplot(bds.data.SR_KSS, aes(x = StartKSS)) + geom_density()
 KSS_plot       
-shapiro.test(data_SR_KSS$StartKSS)
+shapiro.test(bds.data.SR_KSS$StartKSS)
 
 ```
 
 ### Transform KSS variable with Sqrt
 ```{r,echo=FALSE}
 # Apply sqrt transformation
-data_SR_KSS$sqrtKSS <- sqrt(data_SR_KSS$StartKSS)
+bds.data.SR_KSS$sqrtKSS <- sqrt(bds.data.SR_KSS$StartKSS)
 # inspect plot
-KSS_plot <- ggplot(data_SR_KSS, aes(x = sqrtKSS)) + geom_density()
+KSS_plot <- ggplot(bds.data.SR_KSS, aes(x = sqrtKSS)) + geom_density()
 KSS_plot
 # Shapiro test
-shapiro.test(data_SR_KSS$sqrtKSS)
+shapiro.test(bds.data.SR_KSS$sqrtKSS)
 
 ```
 
@@ -186,15 +191,15 @@ shapiro.test(data_SR_KSS$sqrtKSS)
 ```{r,echo=FALSE}
 # Create model
 SR_KSS <- lmer(sqrtKSS ~ 1 + SessionTime*Condition + (1|PtID),
-               data = data_SR_KSS)
+               data = bds.data.SR_KSS)
 summary(SR_KSS)
 
 SR_KSS2 <- lmer(sqrtKSS ~ 1 + SessionTime + (1|PtID),
-                data= data_SR_KSS[data_SR_KSS$Condition == 'SR',])
+                data= bds.data.SR_KSS[bds.data.SR_KSS$Condition == 'SR',])
 summary(SR_KSS2)
 
 SR_KSS3 <- lmer(sqrtKSS ~ 1 + Condition + (1|PtID),
-                data = data_SR_KSS[data_SR_KSS$SessionTime == 'PM',])
+                data = bds.data.SR_KSS[bds.data.SR_KSS$SessionTime == 'PM',])
 summary(SR_KSS3)
 
 # Confidence Intervals
@@ -219,7 +224,7 @@ KSS_scores <- as.data.frame(
                            ))
   )
 
-KSS_scores
+
 
 KSS_plot  <-ggplot(KSS_scores, aes(x = SessionTime, y = lsmean, color = Condition)) + 
     geom_point(size = 3) + geom_line(aes(group = Condition)) + scale_y_continuous(limits = c(1, 3))+
@@ -241,7 +246,6 @@ ggsave( plot = KSS_plot,
 
 ```{r,echo=FALSE}
 sim_output <- simulateResiduals(SR_KSS, plot = F)
-
 plotQQunif(sim_output)
 plotResiduals(sim_output)
 
@@ -259,7 +263,7 @@ plotResiduals(sim_output)
 
 SR_Acc <- glmer(IsCorrect ~  1 + NoBrainers*Condition*SessionTime + (1|PtID),
                  family = binomial("logit"),
-                 data_SR)
+                 bds.data.SR)
 
 
 
@@ -267,7 +271,7 @@ SR_Acc <- glmer(IsCorrect ~  1 + NoBrainers*Condition*SessionTime + (1|PtID),
 
 SR_Acc1 <-glmer(IsCorrect~ 1 + Condition*SessionTime + (1|PtID),
                 family = binomial("logit"),
-                data_SR2)
+                bds.data.SR2)
 
 summary(SR_Acc1)
 
@@ -275,7 +279,7 @@ summary(SR_Acc1)
 
 SR_Acc3 <- glmer(IsCorrect ~ 1  + IsEasy*Condition*SessionTime + (1|PtID),
                  family = binomial("logit"),
-                 data_SR)
+                 bds.data.SR)
 summary(SR_Acc3)
 tab_model(SR_Acc3)
 
@@ -345,13 +349,13 @@ plotResiduals(sim_output)
 
 SR_pooled <- glmer (PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + (1 |PtID),
                     family = binomial('probit'),
-                    data = data_SR)
+                    bds.data.SR)
 summary(SR_pooled)
 
-# Create model
+# Create model with 3 way interaction
 SR1 <- glmer(PtResp ~ 1 + SessionTime*Condition*LogLLA + SessionTime*Condition*LogBaserate + (1|PtID),
              family = binomial('probit'),
-             data_SR
+             bds.data.SR
              )
 
 # Print summary
@@ -386,6 +390,8 @@ sim_output <- simulateResiduals(SR1, plot = F)
 plotQQunif(sim_output)
 plotResiduals(sim_output)
 
+
+qqnorm(resid(SR1));qqline(resid(SR1))
 ```
 
 ## AM-only
@@ -395,8 +401,9 @@ plotResiduals(sim_output)
 # Create model
 SR_AM1 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + (1|PtID),
              family = binomial('probit'),
-             data_SR_AM
+             bds.data.SR.AM
              )
+
 
 # Print summary
 summary(SR_AM1)
@@ -436,6 +443,10 @@ sim_output <- simulateResiduals(SR_AM1, plot = T)
 plotQQunif(sim_output)
 plotResiduals(sim_output)
 
+ggplot(data.frame(eta=predict(SR_AM1,type="link"),pearson=residuals(SR_AM1,type="pearson")),
+      aes(x=eta,y=pearson)) +
+    geom_point() +
+    theme_bw()
 
 ```
 
@@ -488,7 +499,7 @@ SR_AM_df
 # Create model
 SR_PM1 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + (1|PtID),
              family = binomial('probit'),
-             data_SR_PM
+             bds.data.SR.PM
              )
 
 # Print summary
@@ -524,6 +535,8 @@ sim_output <- simulateResiduals(SR_PM1, plot = F)
 plotQQunif(sim_output)
 plotResiduals(sim_output)
 
+hist(resid(SR_PM1), breaks = seq(from=-5, to = 6, by=0.3))
+plot(fitted(SR_PM1), resid(SR_PM1));abline(0,0)
 ```
 
 ### Chi-Square Tests of Coefficient Equality
@@ -567,16 +580,17 @@ SR_PM_df
 ```
 
 
-
+# Analyses Excluding NoBrainer Trials
 ## Pooled SR Model without the NoBrainer trials (convergence issue)
 ```{r,echo=FALSE}
 
 SR2 <- glmer(PtResp ~ 1 + SessionTime*Condition*LogLLA + SessionTime*Condition*LogBaserate + (1|PtID),
              family = binomial('probit'),
-             data = data_SR2
+             control = glmerControl(boundary.tol = 1e10, tolPwrss = 5e-2),
+             data = bds.data.SR2
 )
             
-
+summary(SR2)
 ```
 
 ## AM-only model without NoBrainers 
@@ -587,7 +601,7 @@ SR2 <- glmer(PtResp ~ 1 + SessionTime*Condition*LogLLA + SessionTime*Condition*L
 SR_AM2 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
                   (1 |PtID),
              family = binomial('probit'),
-             data_SR_AM2
+             bds.data.SR.AM2
              )
 
 # Print summary
@@ -686,7 +700,7 @@ AM_rdw_plot
 # Create model
 SR_PM2 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + (1|PtID),
              family = binomial('probit'),
-             data_SR_PM2
+             bds.data.SR.PM2
              )
 
 # Print summary
@@ -718,8 +732,7 @@ check_collinearity(SR_PM2)
 
 # Check residuals
 sim_output <- simulateResiduals(SR_PM2, plot = F)
-plotQQunif(
-sim_output)
+plotQQunif(sim_output)
 plotResiduals(sim_output)
 ```
 
@@ -846,7 +859,7 @@ ggsave( plot = rdw_plots,
 SR_AM3 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
                   (1 |PtID),
              family = binomial('probit'),
-             data_SR_AM3
+             bds.data_SR_AM3
              )
 
 summary(SR_AM3)
@@ -882,7 +895,7 @@ PM session
 SR_PM3 <-glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
                   (1 |PtID),
              family = binomial('probit'),
-             data_SR_PM3
+             bds.data_SR_PM3
              )
 
 summary(SR_PM3)
@@ -921,7 +934,7 @@ linearHypothesis(SR_PM3, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rh
 brm_test <- brm(formula = PtResp| trials(35)~
                    1 + Condition*LogLLA + Condition*LogBaserate + 
                   (1 + Condition*LogLLA + Condition*LogBaserate|PtID),
-                 data = data_SR_AM2,
+                 bds.data = bds.data_SR_AM2,
                  family = binomial(link='logit'),
                  warmup = 1000,
                 iter = 4000,
@@ -945,10 +958,9 @@ exp(0.17)/(1+exp(.17))
 
 ```{r,echo=FALSE}
 
-CM_trials<-subset(data_CM , Condition == "CM")
+CM_trials<-subset(bds.data_CM , Condition == "CM")
 length(unique(CM_trials$ID))
 
 ```
-
 
 

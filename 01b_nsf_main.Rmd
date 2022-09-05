@@ -2,11 +2,8 @@
 title: "**NSF study Main Data Analyses**"
 output: html_notebook
 ---
-### General Instructions
-* Execute chunk by placing cursor within chunk and pressing *Ctrl+Shift+Enter*. 
-* Execute a single line of code by placing cursor on that line, and pressing *Ctrl+Enter*
-* Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-* When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+## Load libraries
 
 ```{r,echo=FALSE}
 
@@ -50,67 +47,247 @@ options(scipen = 20)
 ```{r,echo=FALSE}
 
 # Read data
-data.nsf <- read_excel("./data/NSF_study_data/data_master.xlsx")
+nsf.data <- read_excel("./data/NSF_study_data/data_master.xlsx")
 
 
 # Check for duplicates
-data.nsf[duplicated(data.nsf),]
+nsf.data <- distinct(nsf.data)
+
+nsf.data<- nsf.data[duplicated(nsf.data) == FALSE,]
 
 # Check variable names 
-names(data.nsf)
+names(nsf.data)
 
 
 ```
-
-
 
 ## Factorize and label Condition and Session
 
 ```{r,echo=FALSE}
 # Convert Condition to factor
-typeof(data.nsf$condition);
-data.nsf$condition <- as.factor(data.nsf$condition);
+typeof(nsf.data$Condition);
+nsf.data$Condition <- factor(nsf.data$Condition,
+                             levels = c("WR", "TSD", "SR"));
 
-# Convert session to factor variable
-data.nsf$session <- factor(data.nsf$session,
+# Convert Session to factor variable
+nsf.data$Session <- factor(nsf.data$Session,
                            levels = c(1, 2),
                            labels = c("1st", "2nd"));
                      
 
 # Create a subset with just SR and WR data, for now. 
-data.nsf.sr <- subset(data.nsf, condition != 'TSD')
+nsf.data.sr <- subset(nsf.data, Condition != 'TSD')
 
+
+```
+
+------------------------------------------------------------------------
+
+# Data management
+
+## Participant ID breakdown
+
+```{r, echo=FALSE}
+# Get number of participants who have WR data
+wr_pts <- unique(nsf.data[nsf.data$Condition == 'WR', ]$PtID)
+length(wr_pts)
+
+# Get number of participants with TSD data
+tsd_pts <- unique(nsf.data[nsf.data$Condition == 'TSD', ]$PtID)
+
+# Get number of participants with SR data
+sr_pts <- unique(nsf.data[nsf.data$Condition == 'SR', ]$PtID)
+
+
+# Sort order
+wr_pts <- sort(wr_pts, decreasing = FALSE);
+tsd_pts <- sort(tsd_pts, decreasing = FALSE);
+sr_pts <- sort(sr_pts, decreasing = FALSE);
+
+# Print number of participants by condition
+length(wr_pts); length(tsd_pts); length(sr_pts)
+# Print total number of participants in whole dataset
+length(unique(nsf.data$PtID))
+
+# SR participants missing WR data
+setdiff(sr_pts, wr_pts)
+# TSD participants missing WR data
+setdiff(tsd_pts, wr_pts)
+# Participants with WR trials data, but missing their respective sleep loss trials data
+setdiff(wr_pts, c(sr_pts, tsd_pts))
+
+
+# Store all the participants missing either condition in one array
+nsf_incomplete_pts <- c(setdiff(sr_pts, wr_pts),setdiff(tsd_pts, wr_pts),setdiff(wr_pts, c(sr_pts, tsd_pts)) )
+
+nsf_incomplete_pts
+```
+
+## Extract & concatenate participant `KSS` data
+
+```{r, echo=FALSE}
+nsf.kss.data <- read.csv("./data/NSF_study_data/KSS_data.csv");
+nsf.kss.data <- nsf.kss.data[ , c("Subject", "Condition", 'KSS_wr', 'KSS_sl')];
+
+# Create new KSS column in nsf.data
+nsf.data$KSS = NA;
+pt_list <-  unique(nsf.data$PtID);
+
+# Loop through participant ids and extract KSS values from `nsf.kss.data`
+for (id in pt_list){
+  if(id %in% nsf.kss.data$Subject){
+    KSS.WR <- nsf.kss.data[nsf.kss.data$Subject == id, ]$KSS_wr
+    KSS.SL <- nsf.kss.data[nsf.kss.data$Subject == id, ]$KSS_sl
+    nsf.data[nsf.data$PtID == id & nsf.data$Condition == "WR", ]$KSS <- KSS.WR
+    nsf.data[nsf.data$PtID == id & nsf.data$Condition %in% c("TSD", "SR"), ]$KSS <- KSS.SL
+    print(glue("KSS data for Subject ID {id} added."))
+  } else {
+    print(glue("No KSS data for Subject ID {id} found."))
+  }
+}
+
+
+```
+
+### View participants missing demographic/KSS informaiton
+
+```{r}
+
+# Participants with missing demographic information
+pt_missingdemo <- unique(nsf.data[is.na(nsf.data$sex),]$PtID)
+print(pt_missingdemo);
+
+# Add these participants to incomplete pt list
+nsf_incomplete_pts <- c(nsf_incomplete_pts, pt_missingdemo); rm(pt_missingdemo)
+
+# View participants missing KSS data. 
+a <- distinct(nsf.data, PtID, Condition,.keep_all = TRUE)
+print(a[is.na(a$KSS)==TRUE, 2:3 ]); pt_missing_kss <- a[is.na(a$KSS)==TRUE, 2:3 ]$PtID
+
+# Add these participants to incomplete pt list
+nsf_incomplete_pts <- c(nsf_incomplete_pts, pt_missing_kss)
 
 ```
 
 ---
 
-# **Pooled** Analyses
+# Analyses
 
-## Count number of participants who did the SR session
+## Drop ineligible participants
 
-```{r,echo=FALSE}
-SR_trials <- subset(data_SR, Condition == 'SR')
-length(unique(SR_trials$PtID))
+```{r}
+
+# Add the participants that David dropped from his analyses to nsf_incomplete_pts
+nsf_incomplete_pts <- sort(c(nsf_incomplete_pts, c(13, 15, 22, 45, 58)))
+nsf_incomplete_pts <- unique(nsf_incomplete_pts); # make sure there's no duplicates
+
+print(nsf_incomplete_pts)
+```
+
+## KSS model
+
+```{r, echo = FALSE}
+# Subset data such that each participant only has 1 KSS entry per condition
+nsf.data.kss <- distinct(nsf.data, PtID, Condition, .keep_all = TRUE)
+nsf.data.kss <- nsf.data.kss[!nsf.data.kss$PtID %in% nsf_incomplete_pts,]
+unique(nsf.data.kss$PtID)
+# Check KSS distribution
+hist(nsf.data.kss$KSS)
+hist(nsf.data.kss$logKSS)
+
+nsf.data.kss$sex
+# Log transform KSS
+nsf.data.kss$logKSS <- log(nsf.data.kss$KSS)
+
+# Build the KSS model
+m.nsf_KSS <- lmer(logKSS ~ 1 + Condition+ (1|PtID), nsf.data.kss)
+
+ 
+# View output
+summary(m.nsf_KSS)
+tab_model(m.nsf_KSS)
+```
+
+## Pooled probit model
+
+```{r}
+# Subset without noBrainers
+
+# nsf_incomplete_pts <- nsf_incomplete_pts[nsf_incomplete_pts != 1]
+
+nsf_incomplete_pts
+nsf.data.b <- nsf.data[nsf.data$NoBrainer == 0 & !nsf.data$PtID %in% nsf_incomplete_pts, ]
+unique(nsf.data.b$PtID)
+
+
+
+#Build pooled model that excludes NoBrainer trials
+m.pool.b <- glmer(PtResp ~ 1 + Session + Condition*LogBaserate + Condition*LogLLA + 
+                    (1  |PtID),             
+                  family = binomial('probit'),
+                  # control = glmerControl(boundary.tol = 1e10),
+                  nsf.data.b);
+
+# View ouptuts
+summary(m.pool.b)
+
+tab_model(m.pool.b)
+
 
 ```
 
-```{r, echo=FALSE}
-wr_pts <- unique(data.nsf[data.nsf$condition == 'WR', ]$PtID)
-tsd_pts <- unique(data.nsf[data.nsf$condition == 'TSD', ]$PtID)
-sr_pts <- unique(data.nsf[data.nsf$condition == 'SR', ]$PtID)
+#### Normality of Residuals check
+```{r}
+# Check residuals
+sim_output <- simulateResiduals(m.pool.b, plot = F)
 
-wr_pts <- sort(wr_pts, decreasing = FALSE);
-tsd_pts <- sort(tsd_pts, decreasing = FALSE);
-sr_pts <- sort(sr_pts, decreasing = FALSE);
-
-print(wr_pts)
-tsd_pts
-sr_pts
+plotQQunif(sim_output)
+plotResiduals(sim_output)
 ```
 
 
+## SR Weight Analyses
+
+```{r, echo = FALSE}
+# Subset noBrainer trials from just the SR participants
+nsf.data.b.sr <- nsf.data.b[nsf.data.b$Condition=='WR'|nsf.data.b$Condition=='SR',]
+
+# Build SR model, without the NoBrainers
+m.SR.b <- glmer(PtResp ~  1 + Condition*LogBaserate + Condition*LogLLA + (1 |PtID), 
+                family = binomial('probit'),
+                data = nsf.data.b.sr);
+  
+# View output
+summary(m.SR.b)
+tab_model(m.SR.b)
+
+# Check residuals
+sim_output <- simulateResiduals(m.SR.b, plot = F)
+plotQQunif(sim_output)
+plotResiduals(sim_output)
 
 
+```
+
+## TSD weight Analyses
+
+```{r, echo = FALSE}
+
+# Subset noBrainer trials from just the TSD participants
+nsf.data.b.tsd <- nsf.data.b[nsf.data.b$Condition=='WR'|nsf.data.b$Condition=='TSD',]
+
+# Inspect number of pts that completed WR and TSD
+sort(unique(nsf.data.b.tsd[nsf.data.b.tsd$Condition == 'WR', ]$PtID));sort(unique(nsf.data.b.tsd[nsf.data.b.tsd$Condition == 'TSD', ]$PtID))
 
 
+# Build TSD model, without the NoBrainers (SINGULAR FIT ISSUE)
+m.TSD.b <- lmer(PtResp~ 1 + Condition*LogBaserate + Condition*LogLLA + (1|PtID), nsf.data.b.tsd)
+
+# View output
+summary(m.TSD) 
+summary(m.TSD.b)
+
+summary(m.TSD.b)
+tab_model(m.TSD.b)
+
+```

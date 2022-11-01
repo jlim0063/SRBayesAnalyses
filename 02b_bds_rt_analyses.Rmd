@@ -1,0 +1,153 @@
+---
+title: "**Reaction Time Analyses**"
+output: html_notebook
+---
+
+
+# **Sleep Restriction** Reaction Time analyses
+
+## Check distirbution of RT and transform
+
+```{r}
+
+
+# Check distribution of RT
+rt_plot <- ggplot(data_SR, aes(x = RT)) + geom_density()
+shapiro.test(data_SR$RT)
+
+rt_plot <- ggplot(data_SR, aes (x = RT)) + geom_histogram()
+rt_plot
+
+# Square root transform RT
+data_SR$sqrtRT <- sqrt(data_SR$RT)
+shapiro.test(data_SR$sqrtRT)
+
+rt_plot <- ggplot(data_SR, aes(x = sqrtRT)) + geom_histogram()
+rt_plot                
+
+
+# Cube root transform RT
+data_SR$cbrtRT<- (data_SR$RT)^(1/3)
+shapiro.test(data_SR$cbrtRT)
+
+rt_plot <- ggplot(data_SR, aes (x = cbrtRT)) + geom_histogram()
+rt_plot
+
+```
+
+
+## Pooled model with NoBrainers x Condition x SessionTime 3-way interaction
+```{r}
+
+
+
+# Create model with cube root transformed RT
+SR_RT1 <- lmer(cbrtRT ~ 1 + NoBrainers*Condition*SessionTime + (1|PtID),
+               data = data_SR
+               )
+summary(SR_RT1)
+
+# APA formatted table
+tab_model(SR_RT1,
+          show.se = TRUE,
+          string.se = "SE",
+          string.ci = "95% CI"
+          )
+
+
+
+# Check collinearity
+check_collinearity(SR_KSS)
+
+```
+
+## Residuals Check
+```{r}
+simulationOutput <- simulateResiduals(SR_RT1, plot = F)
+
+plotQQunif(sim_output)
+plotResiduals(sim_output)
+```
+
+
+
+--- 
+
+# Experimental
+
+```{r}
+
+# Create absolute values of LogLLA and LogBaserate, which would represent the ease of making a  decision based on that source of info alone
+data_SR$LogLLA_str <- abs(data_SR$LogLLA)
+data_SR$LogBR_str <- abs(data_SR$LogBaserate)
+
+# Split each subset further into AM and PM sessions
+
+data_SR_AM = subset(data_SR, SessionTime == 'AM')
+data_SR_PM = subset(data_SR, SessionTime == 'PM')
+
+
+# Create subset of  SR data without the NoBrainers
+data_SR2 <- subset(data_SR, NoBrainers == 0 )
+
+# Split each subset into AM and PM sessions
+data_SR_AM2 <- subset(data_SR2, SessionTime == 'AM')
+data_SR_PM2 <- subset(data_SR2, SessionTime == 'PM')
+
+
+
+# Create subset of SR data ONLY with the NoBrainers
+
+data_SR3 <- subset(data_SR, NoBrainers == 1)
+
+# Split each subset into AM and PM sessions
+data_SR_AM3 <- subset(data_SR3, SessionTime == 'AM')
+data_SR_PM3 <- subset(data_SR3, SessionTime == 'PM')
+
+```
+
+
+```{r}
+
+# Pooled model
+test <- lmer(cbrtRT ~ 1 +  Condition*LogLLA_str + Condition*LogBR_str + (1|PtID),
+             data_SR)
+summary(test)
+```
+
+```{r, echo = FALSE}
+# AM-only
+
+AM_test <- lmer(cbrtRT ~ 1 + Condition*LogLLA_str + Condition*LogBR_str + (1|PtID),
+                data_SR_AM2)
+
+summary(AM_test)
+
+# Check residuals
+simulationOutput <- simulateResiduals(AM_test, plot = F)
+
+plotQQunif(sim_output)
+plotResiduals(sim_output)
+```
+
+```{r}
+
+#PM-only
+
+PM_test <- lmer(cbrtRT ~ 1 + Condition*LogLLA_str + Condition*LogBR_str + (1|PtID),
+                data_SR_PM2)
+
+summary(PM_test)
+
+
+
+# Check residuals
+simulationOutput <- simulateResiduals(PM_test, plot = F)
+plotQQunif(sim_output)
+plotResiduals(sim_output)
+```
+
+
+
+
+

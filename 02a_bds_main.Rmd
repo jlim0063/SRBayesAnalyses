@@ -1,0 +1,734 @@
+---
+title: "**Main Data Analyses**"
+output: html_notebook
+---
+### General Instructions
+* Execute chunk by placing cursor within chunk and pressing *Ctrl+Shift+Enter*. 
+* Execute a single line of code by placing cursor on that line, and pressing *Ctrl+Enter*
+* Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+* When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```{r,echo=FALSE}
+
+## Load Packages
+
+library(dplyr)
+library(readxl)
+library(tidyr)
+
+
+
+# Visualisation libraries
+library(ggplot2)
+library(ggsignif) # For significance bars on ggplots
+library(visreg)
+
+library(egg) # for ggarrange (panelling multiple ggplots)
+library(lme4)
+library(lmerTest)
+# library(r2glmm) # Get model R2 and semi-partial R2 correlations for lmer and glmer
+
+library(brms)
+library(emmeans)
+# library(GLMMadaptive) # marginal effects for GLMER
+
+library(aod)
+library(car)   # For Chi-square test of Coefficient Equality `linearHypothesis`
+library(MuMIn)
+library(performance) # for check_collinearity function
+library(sjPlot) # This gives a summary output of the model in APA style. Use `tab_model(model)`
+
+
+library(piecewiseSEM)
+library(DHARMa)
+
+
+
+
+# Turn off scientific notation
+options(scipen = 20)
+
+```
+
+
+
+# Data Management
+
+```{r,echo=FALSE}
+
+# Read bds.data
+bds.data <- read.csv("./data/BDS_study_data/data_master.csv")
+
+# Check for duplicates
+bds.data[duplicated(bds.data),]
+
+
+```
+
+
+
+## Factorize and label Condition and Session
+
+```{r,echo=FALSE}
+# Convert Condition to factor
+
+bds.data$Condition <- factor(bds.data$Condition,
+                         levels = c(1, 2, 3),
+                         labels = c("WR", "SR", "CM")
+)
+
+# convert Session to factor
+bds.data$SessionTime <- factor(bds.data$SessionTime,
+                       levels = c(1,2),
+                       labels = c("AM", "PM")
+                       )
+
+
+```
+
+```{r, echo=FALSE}
+
+# Read in data
+bds.temp.csl <- read_excel("data/BDS_study_data/cumulative_sleep_lost_tabulation.xlsx", sheet= 1)
+
+# Create new cumulativeSleepLost variable in the main dataset
+bds.data$cumulativeSleepLost = NA
+
+# Merge cumulative sleep loss into respective participants in master dataset
+
+for (id in unique(bds.data[bds.data$Condition == "SR", ]$PtID)){
+  bds.data[bds.data$PtID == id, "cumulativeSleepLost"] = bds.temp.csl[bds.temp.csl$ID == id, "cumulativeSleepLost"]
+}
+
+# Clear bds.temp.csl from global
+rm(bds.temp.csl)
+
+```
+
+## Subset bds.data
+
+```{r,echo=FALSE}
+# -----------------------------------------------------------------------
+# Subset bds.data into SR and CM
+# -----------------------------------------------------------------------
+bds.data.WRSR    =  subset(bds.data, Condition == 'WR'|Condition == 'SR')
+bds.data.WRCM    =  subset(bds.data, Condition == 'WR'| Condition == 'CM')
+
+# -----------------------------------------------------------------------
+# Split each subset further into AM and PM sessions
+# -----------------------------------------------------------------------
+
+bds.data.WRSR.AM = subset(bds.data.WRSR, SessionTime == 'AM')
+bds.data.WRSR.PM = subset(bds.data.WRSR, SessionTime == 'PM')
+bds.data.WRCM.AM = subset(bds.data.WRCM, SessionTime == 'AM')
+bds.data.WRCM.PM = subset(bds.data.WRCM, SessionTime == 'PM')
+
+
+# -----------------------------------------------------------------------
+# Create subset of bds.data.WRSR and bds.data.WRCM without the NoBrainers
+# -----------------------------------------------------------------------
+bds.data.WRSR.exNB    <- subset(bds.data.WRSR, NoBrainers == 0 )
+bds.data.WRCM.exNB    <- subset(bds.data.WRCM, NoBrainers == 0 )
+# Split each subset into AM and PM sessions
+bds.data.WRSR.AM.exNB <- subset(bds.data.WRSR.exNB, SessionTime == 'AM')
+bds.data.WRSR.PM.exNB <- subset(bds.data.WRSR.exNB, SessionTime == 'PM')
+# Split each subset into AM and PM sessions
+bds.data.WRCM.AM.exNB <- subset(bds.data.WRCM.exNB, SessionTime == 'AM')
+bds.data.WRCM.PM.exNB <- subset(bds.data.WRCM.exNB, SessionTime == 'PM')
+
+# -----------------------------------------------------------------------
+# Create subset of SR/CM bds.data with HARD trials
+# -----------------------------------------------------------------------
+bds.data.WRSR.hard    <- subset(bds.data.WRSR, IsEasy == 0)
+bds.data.WRCM.hard    <- subset(bds.data.WRCM, IsEasy == 0)
+# Split each subset into AM and PM sessions
+bds.data.WRSR.hard.AM <- subset(bds.data.WRSR.hard, SessionTime == 'AM')
+bds.data.WRSR.hard.PM <- subset(bds.data.WRCM.hard, SessionTime == 'PM')
+# Split each subset into AM and PM sessions
+bds.data.WRCM.hard.AM <- subset(bds.data.WRCM.hard, SessionTime == 'AM')
+bds.data.WRCM.hard.PM <- subset(bds.data.WRCM.hard, SessionTime == 'PM')
+
+```
+
+
+---
+
+# Demographics
+```{r}
+
+# Create tibble for demographics
+bds.data.demographics        <- tibble(.rows = 41)
+bds.data.demographics$PtID   <- unique(bds.data.WRSR.exNB$PtID)
+bds.data.demographics$sex    <- NA
+bds.data.demographics$age    <- NA
+
+
+# Read in original demographic dataframe and store in a temporary dataframe
+bds.temp.demographics  <- read_excel("./data/BDS_study_data/1_Demographics.xlsx")
+
+# Pull demographic data from original demographic dataframe
+for (id in bds.data.demographics$PtID){
+  bds.data.demographics[bds.data.demographics$PtID == id, "sex"] <- bds.temp.demographics[bds.temp.demographics$ID == id, "Sex"]
+  bds.data.demographics[bds.data.demographics$PtID == id, "age"] <- bds.temp.demographics[bds.temp.demographics$ID == id, "Age"]
+};
+
+# Remove temporary dataframe
+rm(bds.temp.demographics)
+
+
+```
+
+
+
+### Declare function to get standardised coefficients, if needed
+```{r}
+
+lm.beta.lmer <- function(mod) {
+   b <- fixef(mod)[-1]
+   sd.x <- apply(getME(mod,"X")[,-1],2,sd)
+   sd.y <- sd(getME(mod,"y"))
+   b*sd.x/sd.y
+}
+
+```
+
+---
+
+# Manipulation Check and Accuracy
+
+## Count number of participants who did the SR session
+
+```{r,echo=FALSE}
+
+length(unique(
+  bds.data.WRSR[bds.data.WRSR$Condition == 'SR',]$PtID
+));
+
+
+```
+
+## [ANALYSES] Manipulation Check 
+
+```{r,echo=FALSE}
+
+# Subset only necessary variables
+bds.data.WRSR.KSS <-bds.data.WRSR[c("PtID", "SessionTime", "Condition", "StartKSS")]
+
+# Keep unique values
+bds.data.WRSR.KSS <- distinct(bds.data.WRSR.KSS)
+
+
+```
+
+### Normality check of StartKSS variable
+```{r,echo=FALSE}
+
+# Density plot
+plot.KSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = StartKSS)) + geom_density()
+
+# Shapiro-Wilk test   
+shapiro.test(bds.data.WRSR.KSS$StartKSS)
+
+# ---------------------------------------------------------------------
+# Both density plots and Shapiro-wilk test indicate non-normality
+# APPLY NON-LINEAR TRANSFORMATIONS
+# ---------------------------------------------------------------------
+
+# Square-root transformation
+bds.data.WRSR.KSS$sqrtKSS <- sqrt(bds.data.WRSR.KSS$StartKSS)
+
+# inspect plot
+plot.sqrtKSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = sqrtKSS)) + geom_density()
+
+# Shapiro test
+shapiro.test(bds.data.WRSR.KSS$sqrtKSS)
+
+# Though the Shapiro-wilk test is still significant, the density plot shows that the square-root transformation has alleviated the normality issue. 
+
+```
+
+
+
+### Create model
+
+```{r,echo=FALSE}
+
+# Create model
+m.bds.KSS <- lmer(sqrtKSS ~ 1 + SessionTime*Condition + (1|PtID),
+               data = bds.data.WRSR.KSS)
+
+summary(m.bds.KSS); lm.beta.lmer(m.bds.KSS); confint(m.bds.KSS, method = "Wald")
+
+# Get R-squared
+r.squaredGLMM(m.bds.KSS)
+
+# Check collinearity
+check_collinearity(m.bds.KSS)
+
+# Model output in APA style
+tab_model(m.bds.KSS,
+          show.est = TRUE,
+          show.se = TRUE,
+          string.se = "SE",
+          string.ci = "95% CI",
+          string.est = "Estimate"
+          )
+```
+
+#### Inspect Residuals via Residual plots
+
+```{r,echo=FALSE}
+sim_output <- simulateResiduals(m.bds.KSS, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
+
+```
+
+#### Plot the graphs of KSS least-square estimates
+
+``` {r, echo = FALSE}
+
+bds.data.KSS.lsmeans <- as_tibble(
+  lsmeans(m.bds.KSS, spec = c("Condition", "SessionTime", by = c("SessionTime")
+                           ))
+  )
+
+plot.KSS.lsmeans <-ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y = lsmean, color = Condition)) + 
+    geom_point(size = 3) + geom_line(aes(group = Condition)) + scale_y_continuous(limits = c(1, 3))+
+    labs(title = "Square-root KSS scores by Condition", x ="SessionTime", y = "Square-root KSS Score") +
+    scale_color_manual(values = c("#202A44", "#9F1D35")) +
+    geom_errorbar(aes(ymin = bds.data.KSS.lsmeans$lower.CL, ymax = bds.data.KSS.lsmeans$upper.CL), color = '#595959', width = 0.1) +
+    theme_bw() + theme(aspect.ratio = 0.9)
+
+# Save as png with transparent background
+ggsave(
+  plot = plot.KSS.lsmeans,
+  filename = "KSS_score.png",
+  bg = "transparent"
+  )
+
+
+```
+
+
+## [ANALYSES] Accuracy Check
+
+```{r,echo=FALSE}
+
+# Accuracy model excluding NoBrainer trials
+
+m.bds.ACC <-glmer(
+  IsCorrect~ 1 + Condition*SessionTime + (1|PtID),
+  family = binomial("logit"),
+  bds.data.WRSR.exNB
+  );
+
+
+# Get R-squared
+r.squaredGLMM(m.bds.ACC)
+
+# Check collienarity
+check_collinearity(m.bds.ACC)
+
+
+# Model output in APA style
+tab_model(
+  m.bds.ACC,
+  show.est = TRUE,
+  show.se = TRUE,
+  string.se = "SE",
+  string.ci = "95% CI",
+  string.est = "Estimate"
+  );
+
+# Get accuracy least-square estimates
+bds.data.ACC.lsmeans <- lsmeans(m.bds.ACC, 
+                                spec = c("Condition", "SessionTime"),  
+                                by = c("Condition"), type = "response"
+                                );
+
+bds.data.ACC.lsmeans <- as_tibble(bds.data.ACC.lsmeans);                                   # Coerce to tibble
+# bds.data.ACC.lsmeans$Condition   <- factor(bds.data.ACC.lsmeans$Condition, levels = c("WR, SR"));      # Coerce factor variables
+# bds.data.ACC.lsmeans$SessionTime <- factor(bds.data.ACC.lsmeans$SessionTime, levels = c("AM", "PM"));
+
+# Plot accuracy least-square estimates
+plot.bds.ACC.lsmeans <- ggplot(bds.data.ACC.lsmeans, aes(x = Condition, y = prob, color = SessionTime )) + 
+  geom_point(size = 3) +
+  scale_y_continuous(limits = c(0.5, 1)) +
+  labs(title = "Trial Accuracy by AM/PM Sessions", x = "Condition", y = "Probability of Accurate Response") +
+  scale_color_manual(values = c("#202A44", "#9F1D35")) + 
+  geom_errorbar(aes(ymin = bds.data.ACC.lsmeans$asymp.LCL, ymax = bds.data.ACC.lsmeans$asymp.UCL), color = '#595959', width = 0.1) + 
+  theme_bw()+theme(aspect.ratio = 1.5) ;
+
+# Facet wrap the plot
+plot.bds.ACC.lsmeans <- plot.bds.ACC.lsmeans + facet_wrap(~SessionTime, ncol = 2);  
+
+# Save as png with transparent background
+ggsave(
+  plot = plot.bds.ACC.lsmeans,
+  filename = "trial_accuracy.png",
+  bg = "transparent"
+  )
+
+ 
+```
+
+### Check Residuals
+
+```{r,echo=FALSE}
+sim_output <- simulateResiduals(m.bds.ACC, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
+
+```
+---
+
+# [ANALYSES] PROBIT MODELS
+
+## Analyses Excluding NoBrainer Trials
+
+### Pooled SR Model without the NoBrainer trials 
+
+Note: Convergence issue on this model
+```{r,echo=FALSE}
+
+m.bds.WRSR.AMPM.exNB <- glmer(
+  PtResp ~ 1 + SessionTime*Condition*LogLLA + SessionTime*Condition*LogBaserate + (1|PtID),
+  family = binomial('probit'),
+  # control = glmerControl(boundary.tol = 1e10, tolPwrss = 5e-2), # Optional line to adjust tolerance, but not sure if statistically viable
+  data = bds.data.WRSR.exNB
+)
+
+# Convergence error message:
+## Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+##   Model failed to converge with max|grad| = 0.00726695 (tol = 0.002, component 1)
+
+```
+### AM-only model without NoBrainers 
+
+```{r,echo=FALSE}
+
+# [EXPERIMENTAL] Create scaled variables for LogLLA and LogBaserate on the standard deviation scale
+
+bds.data.WRSR.AM.exNB$LogLLA_scaled      <- scale(bds.data.WRSR.AM.exNB$LogLLA)
+bds.data.WRSR.AM.exNB$LogBaserate_scaled <- scale(bds.data.WRSR.AM.exNB$LogBaserate)
+
+# Build the probit model
+
+m.bds.WRSR.AM.exNB <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
+                  (1 |PtID),
+             family = binomial(link = 'probit'),
+             bds.data.WRSR.AM.exNB
+             )
+
+
+# Print summary and confint
+summary(m.bds.WRSR.AM.exNB); confint(m.bds.WRSR.AM.exNB, method="Wald",level = 0.95, oldNames="FALSE")
+# Get R-squared
+r.squaredGLMM(m.bds.WRSR.AM.exNB)
+# Check collinearity
+check_collinearity(m.bds.WRSR.AM.exNB)
+
+# Model output in APA style
+tab_model(
+  m.bds.WRSR.AM.exNB,        
+  transform = NULL, show.est = TRUE, show.se = TRUE,
+  string.se = "SE", string.ci = "95% CI", string.est = "Estimate",
+  digits = 3, digits.p = 3, digits.rsq = 3, digits.re = 3
+  );
+
+```
+#### Check Residuals
+
+```{r,echo=FALSE}
+sim_output <- simulateResiduals(m.bds.WRSR.AM.exNB, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
+
+```
+
+
+### Decision Weight Analyses
+```{r,echo=FALSE}
+
+# Chi-square tests between coefficients
+linearHypothesis(m.bds.WRSR.AM.exNB, 
+                 c(" LogBaserate =  LogLLA"),                             # WR coefficients
+                 rhs=NULL, vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+linearHypothesis(m.bds.WRSR.AM.exNB, 
+                 c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"),     # Interaction coefficients to determine if extent of change is sig. different
+                 rhs=NULL, vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+
+
+```
+### Calculate and plot decision weights
+```{r,echo=FALSE}
+
+# Calculate relative decision-weights
+
+LogLLA         <- 0.30879 
+LogBaserate    <- 0.77677 
+SR_LogLLA      <- LogLLA + -0.06359
+SR_LogBaserate <- LogBaserate + -0.12544
+
+# During WR
+WR.AM.RDW   <- (LogLLA - LogBaserate )/ (LogLLA + LogBaserate)
+# During SR
+SR.AM.RDW   <- (SR_LogLLA - SR_LogBaserate)/(SR_LogLLA + SR_LogBaserate)
+condition   <- c("WR_AM", "SR_AM")
+relative_dw <- c(WR.AM.RDW, SR.AM.RDW)
+
+# Create tibble with condition and their respective RDWs
+bds.data.AM.RDW <- tibble(condition, relative_dw);
+bds.data.AM.RDW$condition <- factor(bds.data.AM.RDW$condition, levels = c("WR_AM", "SR_AM"));
+
+
+# Plot the decision
+         
+plot.bds.AM.RDW <- ggplot(data=bds.data.AM.RDW, aes(x = condition, y = relative_dw)) + 
+  geom_bar(
+    stat ="identity", 
+    width = 0.4, fill= c("#202A44", "#9B2915")
+    ) +
+  xlab("Condition") + ylab("") +    # Rename x and y axes
+  geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
+  scale_y_continuous(limits = c(-1,1))+   # set y axis limits
+  ggtitle("AM Session") +  # add title
+  geom_text(aes(label = round(relative_dw, 2)), nudge_y = -0.04)+  # add text values of each bars
+  #geom_signif(comparisons = list(c("WR_AM", "SR_AM")), annotations = "N.S.", y_position = .1) + # Add significance lines
+  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14) ,axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
+  scale_x_discrete(labels = c("WR", "SR"))
+
+# Remove placeholder variables from global
+rm(LogLLA);rm(LogBaserate);rm(WR.AM.RDW);rm(SR.AM.RDW);rm(SR_LogLLA);rm(SR_LogBaserate);rm(condition);rm(relative_dw);
+
+```
+
+## PM-only model without NoBrainers 
+```{r,echo=FALSE}
+
+# Create model
+m.bds.WRSR.PM.exNB <- glmer(
+  PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + (1|PtID),
+  family = binomial('probit'),
+  bds.data.WRSR.PM.exNB
+  );
+
+# Print summary
+summary(m.bds.WRSR.PM.exNB); confint(m.bds.WRSR.PM.exNB, method = "Wald");
+# Check collienarity
+check_collinearity(m.bds.WRSR.PM.exNB)
+
+# Confidence Intervals
+confint(m.bds.WRSR.PM.exNB, method="Wald",level = 0.95, oldNames="FALSE")
+
+
+# Model output in APA style
+tab_model(m.bds.WRSR.PM.exNB,
+          transform = NULL, show.est = TRUE, show.se = TRUE,
+          string.se = "SE", string.ci = "95% CI", string.est = "Estimate",
+          digits = 3, digits.p = 3, digits.rsq = 3, digits.re = 3
+          );
+
+
+
+
+```
+### Check Residuals
+
+```{r,echo=FALSE}
+
+# Check residuals
+sim_output <- simulateResiduals(m.bds.WRSR.PM.exNB, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
+```
+
+```{r, echo = FALSE}
+
+condition <- c("WR", "WR", "SR", "SR", "WR", "WR", "SR", "SR")
+session <- c(rep("AM", 4), rep("PM", 4))
+information <-  c(rep(c("LogLLA", "LogBR"), 4))
+
+coefficients <- c(0.30879,  0.77677,  0.2452,  0.65133,  0.29171,  0.72799,  0.23351,  0.77166  )
+
+se_lower <- c(0.28761,  0.73181,  0.21407,  0.58405,  0.27113,  0.6843,  0.20264,  0.70358  )
+
+se_upper <- c(0.32997,  0.82173,  0.27633,  0.71861,  0.31229,  0.77168,  0.26438,  0.83974  )
+
+ci_lower <- c(0.2672815,0.6886429,0.1841902,0.5194604,0.25137681,0.64235532,0.17300985,0.63821854)
+ci_upper <-c(0.350304,0.864895588,0.306202423,0.783197672,0.332046028,0.813631264,0.294015979,0.905105997)
+
+decision_weights <- tibble(condition, session, information, coefficients, se_lower, se_upper, ci_lower, ci_upper)
+decision_weights
+decision_weights$condition <- factor(decision_weights$condition, levels = c("WR","SR"))
+decision_weights$session <- factor(decision_weights$session, levels = c("AM", "PM"))
+decision_weights$information <- factor(decision_weights$information, levels = c("LogLLA", "LogBR"))
+
+
+dw_plot <- ggplot(data = decision_weights, aes( x = condition, y = coefficients , color =  information)) + 
+  geom_point(size=  2.5) + 
+  scale_y_continuous(limits = c(0.0,1)) +
+  
+  labs(title = "Decision Weights by Condition", x = "Condition", y = "Weight", color = "Information")+
+  scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("blue", "red"))+
+  
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
+  theme_bw(base_size = 14) + theme(aspect.ratio =  2, axis.title = element_text(face = "bold"))  
+
+facet_plot <- dw_plot + facet_wrap(~session, ncol = 2)
+
+facet_plot
+
+# Save as png with transparent background
+ggsave( plot = facet_plot,
+        filename = "decision_weights.png",
+        bg = "transparent")
+
+
+
+```
+
+### Decision Weight Analyses
+```{r,echo=FALSE}
+
+# Chi-square tests
+linearHypothesis(SR_PM2, c(" LogBaserate =  LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+linearHypothesis(SR_PM2, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+
+
+```
+### Calculate and plot decision weights
+
+```{r,echo=FALSE}
+
+
+# Calculate relative decision-weights
+
+LogLLA           <- 0.29171 
+LogBaserate      <- 0.72799 
+
+
+calculate_relative_dw = function(LogLLA, LogBaserate){
+    rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
+    return(rdw)
+};
+
+RDW_WR.bds  <- calculate_relative_dw(.29171, .72799)
+RDW_SR.bds  <- calculate_relative_dw(.29171 -.05820, .72799 + .04367)
+
+condition    <- c("WR_PM", "SR_PM")
+RDW <- c(RDW_WR.bds, RDW_SR.bds)
+
+
+# Create tibble
+SR_PM_rdw <- tibble(condition, RDW)
+SR_PM_rdw$condition = factor(SR_PM_rdw$condition, levels = c("WR_PM", "SR_PM")) # Factorise condition
+
+                             
+# Plot the Relative Decision Weights
+PM_rdw_plot <- ggplot(data=SR_PM_rdw, aes(x = condition, y = RDW)) + 
+  geom_bar(
+    stat ="identity", 
+    width = 0.4, fill= c("#202A44", "#9B2915")
+    ) +
+  xlab("Condition") + ylab("") +    # Rename x and y axes
+  geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
+  scale_y_continuous(limits = c(-1,1))+   # set y axis limits
+  ggtitle("PM Session") +  # add title
+  geom_text(aes(label = round(RDW, 2)), nudge_y = -0.04)+  # add text values of each bars
+  #geom_signif(comparisons = list(c("WR_AM", "SR_AM")), annotations = "N.S.", y_position = .1) + # Add significance lines
+  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14) ,axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
+  scale_x_discrete(labels = c("WR", "SR"))
+
+PM_rdw_plot
+RDW_plot.bds <- ggarrange(AM_rdw_plot, PM_rdw_plot, ncol = 2 , nrow = 1)
+
+
+# Save as png with transparent background
+ggsave( plot =RDW_plot.bds,
+        filename = "rel_decision_weights.png",
+        bg = "transparent")
+
+
+#plot model
+
+```
+
+
+---
+
+## Analyses on non-Easy and Easy trials
+```{r}
+
+
+# Create model
+SR_AM3 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
+                  (1 |PtID),
+             family = binomial('probit'),
+             bds.data_SR_AM3
+             )
+
+summary(SR_AM3)
+
+```
+
+
+### Residuals Test
+```{r}
+#Residuals tests
+sim_output <- simulateResiduals(SR_PM2, plot = F)
+plotQQunif( sim_output)
+plotResiduals(sim_output)
+
+```
+
+### Coefficients test
+```{r}
+# Chi-square tests
+linearHypothesis(SR_AM3, c(" LogBaserate =  LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+linearHypothesis(SR_AM3, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+
+```
+
+
+PM session
+
+```{r}
+SR_PM3 <-glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
+                  (1 |PtID),
+             family = binomial('probit'),
+             bds.data_SR_PM3
+             )
+
+summary(SR_PM3)
+tab_model(SR_PM3)
+
+```
+
+### Residuals Test
+```{r}
+#Residuals tests
+sim_output <- simulateResiduals(SR_PM3, plot = F)
+plotQQunif( sim_output)
+plotResiduals(sim_output)
+
+```
+
+### Coefficients test
+```{r}
+# Chi-square tests
+
+linearHypothesis(SR_PM3, c(" LogBaserate =  LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+linearHypothesis(SR_PM3, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
+                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+
+
+```
+
+---
+

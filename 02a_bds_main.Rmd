@@ -1,12 +1,9 @@
 ---
-title: "**Main Data Analyses**"
-output: html_notebook
+title: "BDS Main Analyses"
+author: "jeryl_lim"
+date: '2022-11-01'
+
 ---
-### General Instructions
-* Execute chunk by placing cursor within chunk and pressing *Ctrl+Shift+Enter*. 
-* Execute a single line of code by placing cursor on that line, and pressing *Ctrl+Enter*
-* Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-* When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
 
 ```{r,echo=FALSE}
 
@@ -16,27 +13,27 @@ library(dplyr)
 library(readxl)
 library(tidyr)
 
-
-
 # Visualisation libraries
 library(ggplot2)
 library(ggsignif) # For significance bars on ggplots
 library(visreg)
 
-library(egg) # for ggarrange (panelling multiple ggplots)
-library(lme4)
+library(egg)       # required for ggarrange (panelling multiple ggplots)
+
+
+library(lme4)      # Primary
 library(lmerTest)
-# library(r2glmm) # Get model R2 and semi-partial R2 correlations for lmer and glmer
+
 
 library(brms)
 library(emmeans)
-# library(GLMMadaptive) # marginal effects for GLMER
+
 
 library(aod)
-library(car)   # For Chi-square test of Coefficient Equality `linearHypothesis`
-library(MuMIn)
-library(performance) # for check_collinearity function
-library(sjPlot) # This gives a summary output of the model in APA style. Use `tab_model(model)`
+library(car)         # required for Chi-square test of Coefficient Equality `linearHypothesis`
+library(MuMIn)       # required for r.squaredGLMM() function
+library(performance) # required for check_collinearity function
+library(sjPlot)      # required for `tab_model(model)`, which provides a formatted output of the model in APA style.
 
 
 library(piecewiseSEM)
@@ -72,16 +69,14 @@ bds.data[duplicated(bds.data),]
 ```{r,echo=FALSE}
 # Convert Condition to factor
 
-bds.data$Condition <- factor(bds.data$Condition,
-                         levels = c(1, 2, 3),
-                         labels = c("WR", "SR", "CM")
-)
+bds.data$Condition   <- factor(bds.data$Condition,
+                               levels = c(1, 2, 3), labels = c("WR", "SR", "CM")
+                               )
 
 # convert Session to factor
 bds.data$SessionTime <- factor(bds.data$SessionTime,
-                       levels = c(1,2),
-                       labels = c("AM", "PM")
-                       )
+                               levels = c(1,2), labels = c("AM", "PM")
+                               )
 
 
 ```
@@ -345,9 +340,8 @@ bds.data.ACC.lsmeans <- lsmeans(m.bds.ACC,
                                 by = c("Condition"), type = "response"
                                 );
 
-bds.data.ACC.lsmeans <- as_tibble(bds.data.ACC.lsmeans);                                   # Coerce to tibble
-# bds.data.ACC.lsmeans$Condition   <- factor(bds.data.ACC.lsmeans$Condition, levels = c("WR, SR"));      # Coerce factor variables
-# bds.data.ACC.lsmeans$SessionTime <- factor(bds.data.ACC.lsmeans$SessionTime, levels = c("AM", "PM"));
+bds.data.ACC.lsmeans <- as_tibble(bds.data.ACC.lsmeans);   # Coerce to tibble
+
 
 # Plot accuracy least-square estimates
 plot.bds.ACC.lsmeans <- ggplot(bds.data.ACC.lsmeans, aes(x = Condition, y = prob, color = SessionTime )) + 
@@ -364,7 +358,7 @@ plot.bds.ACC.lsmeans <- plot.bds.ACC.lsmeans + facet_wrap(~SessionTime, ncol = 2
 # Save as png with transparent background
 ggsave(
   plot = plot.bds.ACC.lsmeans,
-  filename = "trial_accuracy.png",
+  filename = "img/bds/trial_accuracy.png",
   bg = "transparent"
   )
 
@@ -404,10 +398,7 @@ m.bds.WRSR.AMPM.exNB <- glmer(
 
 ```{r,echo=FALSE}
 
-# [EXPERIMENTAL] Create scaled variables for LogLLA and LogBaserate on the standard deviation scale
 
-bds.data.WRSR.AM.exNB$LogLLA_scaled      <- scale(bds.data.WRSR.AM.exNB$LogLLA)
-bds.data.WRSR.AM.exNB$LogBaserate_scaled <- scale(bds.data.WRSR.AM.exNB$LogBaserate)
 
 # Build the probit model
 
@@ -433,6 +424,11 @@ tab_model(
   digits = 3, digits.p = 3, digits.rsq = 3, digits.re = 3
   );
 
+# [EXPERIMENTAL] Create scaled variables for LogLLA and LogBaserate on the standard deviation scale
+
+bds.data.WRSR.AM.exNB$LogLLA_scaled      <- scale(bds.data.WRSR.AM.exNB$LogLLA)
+bds.data.WRSR.AM.exNB$LogBaserate_scaled <- scale(bds.data.WRSR.AM.exNB$LogBaserate)
+
 ```
 #### Check Residuals
 
@@ -440,7 +436,6 @@ tab_model(
 sim_output <- simulateResiduals(m.bds.WRSR.AM.exNB, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
 
 ```
-
 
 ### Decision Weight Analyses
 ```{r,echo=FALSE}
@@ -457,8 +452,15 @@ linearHypothesis(m.bds.WRSR.AM.exNB,
 
 
 ```
-### Calculate and plot decision weights
+
+### Calculate and plot Relative Decision Weights for AM session
 ```{r,echo=FALSE}
+
+# Define function to calculate standardised Relative Dcision Weights
+calculate_relative_dw = function(LogLLA, LogBaserate){
+  rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
+  return(rdw)
+};
 
 # Calculate relative decision-weights
 
@@ -467,15 +469,16 @@ LogBaserate    <- 0.77677
 SR_LogLLA      <- LogLLA + -0.06359
 SR_LogBaserate <- LogBaserate + -0.12544
 
-# During WR
-WR.AM.RDW   <- (LogLLA - LogBaserate )/ (LogLLA + LogBaserate)
-# During SR
-SR.AM.RDW   <- (SR_LogLLA - SR_LogBaserate)/(SR_LogLLA + SR_LogBaserate)
+
+
+WR.AM.RDW   <- calculate_relative_dw(LogLLA, LogBaserate)
+SR.AM.RDW   <- calculate_relative_dw(SR_LogLLA, SR_LogBaserate)
+
 condition   <- c("WR_AM", "SR_AM")
 relative_dw <- c(WR.AM.RDW, SR.AM.RDW)
 
 # Create tibble with condition and their respective RDWs
-bds.data.AM.RDW <- tibble(condition, relative_dw);
+bds.data.AM.RDW           <- tibble(condition, relative_dw);
 bds.data.AM.RDW$condition <- factor(bds.data.AM.RDW$condition, levels = c("WR_AM", "SR_AM"));
 
 
@@ -483,8 +486,7 @@ bds.data.AM.RDW$condition <- factor(bds.data.AM.RDW$condition, levels = c("WR_AM
          
 plot.bds.AM.RDW <- ggplot(data=bds.data.AM.RDW, aes(x = condition, y = relative_dw)) + 
   geom_bar(
-    stat ="identity", 
-    width = 0.4, fill= c("#202A44", "#9B2915")
+    stat ="identity", width = 0.4, fill= c("#202A44", "#9B2915")
     ) +
   xlab("Condition") + ylab("") +    # Rename x and y axes
   geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
@@ -510,9 +512,10 @@ m.bds.WRSR.PM.exNB <- glmer(
   bds.data.WRSR.PM.exNB
   );
 
-# Print summary
+# Print summary & confint
 summary(m.bds.WRSR.PM.exNB); confint(m.bds.WRSR.PM.exNB, method = "Wald");
-# Check collienarity
+
+# Check collinearity
 check_collinearity(m.bds.WRSR.PM.exNB)
 
 # Confidence Intervals
@@ -530,56 +533,12 @@ tab_model(m.bds.WRSR.PM.exNB,
 
 
 ```
-### Check Residuals
 
+### Check Residuals
 ```{r,echo=FALSE}
 
 # Check residuals
 sim_output <- simulateResiduals(m.bds.WRSR.PM.exNB, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
-```
-
-```{r, echo = FALSE}
-
-condition <- c("WR", "WR", "SR", "SR", "WR", "WR", "SR", "SR")
-session <- c(rep("AM", 4), rep("PM", 4))
-information <-  c(rep(c("LogLLA", "LogBR"), 4))
-
-coefficients <- c(0.30879,  0.77677,  0.2452,  0.65133,  0.29171,  0.72799,  0.23351,  0.77166  )
-
-se_lower <- c(0.28761,  0.73181,  0.21407,  0.58405,  0.27113,  0.6843,  0.20264,  0.70358  )
-
-se_upper <- c(0.32997,  0.82173,  0.27633,  0.71861,  0.31229,  0.77168,  0.26438,  0.83974  )
-
-ci_lower <- c(0.2672815,0.6886429,0.1841902,0.5194604,0.25137681,0.64235532,0.17300985,0.63821854)
-ci_upper <-c(0.350304,0.864895588,0.306202423,0.783197672,0.332046028,0.813631264,0.294015979,0.905105997)
-
-decision_weights <- tibble(condition, session, information, coefficients, se_lower, se_upper, ci_lower, ci_upper)
-decision_weights
-decision_weights$condition <- factor(decision_weights$condition, levels = c("WR","SR"))
-decision_weights$session <- factor(decision_weights$session, levels = c("AM", "PM"))
-decision_weights$information <- factor(decision_weights$information, levels = c("LogLLA", "LogBR"))
-
-
-dw_plot <- ggplot(data = decision_weights, aes( x = condition, y = coefficients , color =  information)) + 
-  geom_point(size=  2.5) + 
-  scale_y_continuous(limits = c(0.0,1)) +
-  
-  labs(title = "Decision Weights by Condition", x = "Condition", y = "Weight", color = "Information")+
-  scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("blue", "red"))+
-  
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
-  theme_bw(base_size = 14) + theme(aspect.ratio =  2, axis.title = element_text(face = "bold"))  
-
-facet_plot <- dw_plot + facet_wrap(~session, ncol = 2)
-
-facet_plot
-
-# Save as png with transparent background
-ggsave( plot = facet_plot,
-        filename = "decision_weights.png",
-        bg = "transparent")
-
-
 
 ```
 
@@ -587,148 +546,115 @@ ggsave( plot = facet_plot,
 ```{r,echo=FALSE}
 
 # Chi-square tests
-linearHypothesis(SR_PM2, c(" LogBaserate =  LogLLA"), rhs=NULL,
+linearHypothesis(m.bds.WRSR.PM.exNB, c(" LogBaserate =  LogLLA"), rhs=NULL,
                  vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
 
-linearHypothesis(SR_PM2, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
+linearHypothesis(m.bds.WRSR.PM.exNB, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
                  vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
 
 
 
 ```
-### Calculate and plot decision weights
 
-```{r,echo=FALSE}
 
+### Calculate and plot Relative Decision Weights for PM session
+
+``` {r, echo = FALSE}
 
 # Calculate relative decision-weights
 
-LogLLA           <- 0.29171 
-LogBaserate      <- 0.72799 
+LogLLA           <- 0.29171 ;
+LogBaserate      <- 0.72799;
 
 
-calculate_relative_dw = function(LogLLA, LogBaserate){
-    rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
-    return(rdw)
-};
-
-RDW_WR.bds  <- calculate_relative_dw(.29171, .72799)
-RDW_SR.bds  <- calculate_relative_dw(.29171 -.05820, .72799 + .04367)
+RDW_WR  <- calculate_relative_dw(.29171, .72799)
+RDW_SR  <- calculate_relative_dw(.29171 -.05820, .72799 + .04367)
 
 condition    <- c("WR_PM", "SR_PM")
-RDW <- c(RDW_WR.bds, RDW_SR.bds)
+RDW          <- c(RDW_WR, RDW_SR)
 
 
 # Create tibble
-SR_PM_rdw <- tibble(condition, RDW)
-SR_PM_rdw$condition = factor(SR_PM_rdw$condition, levels = c("WR_PM", "SR_PM")) # Factorise condition
+bds.temp.PM.RDW <- tibble(condition, RDW)
+bds.temp.PM.RDW$condition = factor(bds.temp.PM.RDW$condition, levels = c("WR_PM", "SR_PM")) # Factorise condition
 
-                             
+
 # Plot the Relative Decision Weights
-PM_rdw_plot <- ggplot(data=SR_PM_rdw, aes(x = condition, y = RDW)) + 
+plot.bds.PM.RDW <- ggplot(data = bds.temp.PM.RDW, aes(x = condition, y = RDW)) + 
   geom_bar(
     stat ="identity", 
     width = 0.4, fill= c("#202A44", "#9B2915")
-    ) +
+  ) +
   xlab("Condition") + ylab("") +    # Rename x and y axes
   geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
   scale_y_continuous(limits = c(-1,1))+   # set y axis limits
   ggtitle("PM Session") +  # add title
   geom_text(aes(label = round(RDW, 2)), nudge_y = -0.04)+  # add text values of each bars
   #geom_signif(comparisons = list(c("WR_AM", "SR_AM")), annotations = "N.S.", y_position = .1) + # Add significance lines
-  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14) ,axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
+  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14), axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
   scale_x_discrete(labels = c("WR", "SR"))
 
-PM_rdw_plot
-RDW_plot.bds <- ggarrange(AM_rdw_plot, PM_rdw_plot, ncol = 2 , nrow = 1)
+# Place AM and PM RDW plots side by side in one single figure
+plot.bds.all.RDW <- ggarrange(plot.bds.AM.RDW, plot.bds.PM.RDW, ncol = 2 , nrow = 1)
 
 
 # Save as png with transparent background
-ggsave( plot =RDW_plot.bds,
-        filename = "rel_decision_weights.png",
+ggsave( plot = plot.bds.all.RDW,
+        filename = "img/bds/bds_relativeDecisionWeights.png",
         bg = "transparent")
 
 
-#plot model
+# Remove placeholder variables from global
+rm(LogLLA);rm(LogBaserate);rm(RDW_SR);rm(RDW_WR);rm(condition);rm(RDW);rm(bds.temp.PM.RDW);
 
 ```
 
 
 ---
+## Plot Decision Weights across both AM & PM sessions
 
-## Analyses on non-Easy and Easy trials
-```{r}
+```{r, echo = FALSE}
 
+# Create placeholder variables and fill with respective data
+condition    <- c("WR", "WR", "SR", "SR", "WR", "WR", "SR", "SR");
+session      <- c(rep("AM", 4), rep("PM", 4));
+information  <- c(rep(c("LogLLA", "LogBR"), 4));
 
-# Create model
-SR_AM3 <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
-                  (1 |PtID),
-             family = binomial('probit'),
-             bds.data_SR_AM3
-             )
+coefficients <- c(0.30879,  0.77677,  0.2452,  0.65133,  0.29171,  0.72799,  0.23351,  0.77166);
 
-summary(SR_AM3)
+se_lower     <- c(0.28761,  0.73181,  0.21407,  0.58405,  0.27113,  0.6843,  0.20264,  0.70358);
+se_upper     <- c(0.32997,  0.82173,  0.27633,  0.71861,  0.31229,  0.77168,  0.26438,  0.83974);
+ci_lower     <- c(0.2672815, 0.6886429, 0.1841902, 0.5194604, 0.25137681, 0.64235532, 0.17300985, 0.63821854);
+ci_upper     <- c(0.350304, 0.864895588, 0.306202423, 0.783197672, 0.332046028, 0.813631264, 0.294015979, 0.905105997);
 
-```
+# Create tibble for Decision Weights
+bds.temp.DW  <- tibble(condition, session, information, coefficients, se_lower, se_upper, ci_lower, ci_upper)
 
+bds.temp.DW$condition   <- factor(bds.temp.DW$condition, levels = c("WR","SR"))
+bds.temp.DW$session     <- factor(bds.temp.DW$session, levels = c("AM", "PM"))
+bds.temp.DW$information <- factor(bds.temp.DW$information, levels = c("LogLLA", "LogBR"))
 
-### Residuals Test
-```{r}
-#Residuals tests
-sim_output <- simulateResiduals(SR_PM2, plot = F)
-plotQQunif( sim_output)
-plotResiduals(sim_output)
+plot.bds.DW <- ggplot(data = bds.temp.AM.DW, aes( x = condition, y = coefficients , color =  information)) + 
+  geom_point(size=  2.5) + 
+  scale_y_continuous(limits = c(0.0,1)) +
+  labs(title = "Decision Weights by Condition", x = "Condition", y = "Weight", color = "Information")+
+  scale_color_manual(labels = c("Draw Outcome","Base Rate Odds"), values = c("blue", "red"))+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
+  theme_bw(base_size = 14) + theme(aspect.ratio =  2, axis.title = element_text(face = "bold"))  
 
-```
-
-### Coefficients test
-```{r}
-# Chi-square tests
-linearHypothesis(SR_AM3, c(" LogBaserate =  LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
-
-linearHypothesis(SR_AM3, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
-
-
-```
+# Facet wrap plots
+plot.bds.DW <- plot.bds.DW  + facet_wrap(~session, ncol = 2);
 
 
-PM session
+# Save as png with transparent background
+ggsave( plot = plot.bds.DW,
+        filename = "img/bds/bds_decisionWeights.png",
+        bg = "transparent")
 
-```{r}
-SR_PM3 <-glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserate + 
-                  (1 |PtID),
-             family = binomial('probit'),
-             bds.data_SR_PM3
-             )
-
-summary(SR_PM3)
-tab_model(SR_PM3)
+# Remove placeholder variables
+rm(condition);rm(session);rm(information);rm(coefficients);rm(se_lower);rm(se_upper);rm(ci_lower);rm(ci_upper);rm(bds.temp.DW)
 
 ```
 
-### Residuals Test
-```{r}
-#Residuals tests
-sim_output <- simulateResiduals(SR_PM3, plot = F)
-plotQQunif( sim_output)
-plotResiduals(sim_output)
-
-```
-
-### Coefficients test
-```{r}
-# Chi-square tests
-
-linearHypothesis(SR_PM3, c(" LogBaserate =  LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
-
-linearHypothesis(SR_PM3, c(" ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
-
-
-```
-
----
+# END
 

@@ -67,14 +67,14 @@ This would mean that the name of the master dataframe (from which subsets are de
 
 Temporary dataframes and tibbles serve as temporary containers for miscellaneous datasets (e.g. demographics). Instead of prefixes `nsf.data` or `bds.data`, these can be identified with the prefixes `nsf.temp` or `bds.temp`. 
 
-Temporary dataframes and tibbles are almost always removed from the global environment at the end of the respective code blocks. Because they usually contain miscellaneous data that may not involve assignment to experimental conditions, the naming convention is as follows:  
+Temporary dataframes and tibbles are almost always removed from the global environment at the end of the respective code blocks using the `rm()` method. Because they usually contain miscellaneous data that may not involve assignment to experimental conditions, the naming convention is as follows:  
 `[prefix].[specifier1].[specifier2]...`
 <br></br>
 
 ### **2.3 PLOT-NAMING CONVENTIONS**
 
 Plot objects use the following naming convention:  
-`plot.[studyAcronym][specifier1].[specifier2]...`  
+`plot.[studyAcronym].[specifier1].[specifier2]...`  
 
 The `plot` prefix denotes that the object is a plot objects, making it easily distinguishable from dataframe and tibble objects.
 <br></br>

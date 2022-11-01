@@ -4,3 +4,6 @@
 .RData
 .Ruserdata
 data/
+data_output_docs/
+
+02d_bds_hardtrials_analyses.R

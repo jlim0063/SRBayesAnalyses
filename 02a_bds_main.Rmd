@@ -4,51 +4,67 @@ author: "jeryl_lim"
 date: '2022-11-01'
 
 ---
-
+### Load packages
 ```{r,echo=FALSE}
 
-## Load Packages
-
-library(dplyr)
-library(readxl)
+## Data wrangling
+library(dplyr)   
 library(tidyr)
+library(readxl)      # required for read_excel() method
 
-# Visualisation libraries
+
+## Visualisation libraries
 library(ggplot2)
-library(ggsignif) # For significance bars on ggplots
 library(visreg)
+library(ggsignif)    # For significance bars on ggplots
 
-library(egg)       # required for ggarrange (panelling multiple ggplots)
+library(egg)         # required for ggarrange (panelling multiple ggplots)
+
+## Modelling
+library(lme4)        # required for `Lmer() and glmer()` methods
+library(lmerTest)    # required for p-value approximations
+
+library(emmeans)     # required to retrieve least-square estimates, using `lsmeans()` and `emmeans`
 
 
-library(lme4)      # Primary
-library(lmerTest)
-
-
-library(brms)
-library(emmeans)
-
-
-library(aod)
+library(aod)         # required to call model comparison methods, such as `AIC`, `BIC`
 library(car)         # required for Chi-square test of Coefficient Equality `linearHypothesis`
 library(MuMIn)       # required for r.squaredGLMM() function
 library(performance) # required for check_collinearity function
 library(sjPlot)      # required for `tab_model(model)`, which provides a formatted output of the model in APA style.
 
+library(DHARMa)      # required for residual inspection
 
-library(piecewiseSEM)
-library(DHARMa)
-
-
+# # Other reserve libraries
+# library(piecewiseSEM)
 
 
 # Turn off scientific notation
 options(scipen = 20)
 
 ```
+---
 
+### Additional function definition
+```{r}
 
+# To retrieve standardised coefficients, if needed
+lm.beta.lmer <- function(mod) {
+   b <- fixef(mod)[-1]
+   sd.x <- apply(getME(mod,"X")[,-1],2,sd)
+   sd.y <- sd(getME(mod,"y"))
+   b*sd.x/sd.y
+}
 
+# Calculate standardised Relative Decision Weights
+calculate_relative_dw = function(LogLLA, LogBaserate){
+  rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
+  return(rdw)
+};
+
+```
+
+---
 # Data Management
 
 ```{r,echo=FALSE}
@@ -175,18 +191,6 @@ rm(bds.temp.demographics)
 
 
 
-### Declare function to get standardised coefficients, if needed
-```{r}
-
-lm.beta.lmer <- function(mod) {
-   b <- fixef(mod)[-1]
-   sd.x <- apply(getME(mod,"X")[,-1],2,sd)
-   sd.y <- sd(getME(mod,"y"))
-   b*sd.x/sd.y
-}
-
-```
-
 ---
 
 # Manipulation Check and Accuracy
@@ -219,7 +223,7 @@ bds.data.WRSR.KSS <- distinct(bds.data.WRSR.KSS)
 ```{r,echo=FALSE}
 
 # Density plot
-plot.KSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = StartKSS)) + geom_density()
+plot.bds.KSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = StartKSS)) + geom_density()
 
 # Shapiro-Wilk test   
 shapiro.test(bds.data.WRSR.KSS$StartKSS)
@@ -233,7 +237,7 @@ shapiro.test(bds.data.WRSR.KSS$StartKSS)
 bds.data.WRSR.KSS$sqrtKSS <- sqrt(bds.data.WRSR.KSS$StartKSS)
 
 # inspect plot
-plot.sqrtKSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = sqrtKSS)) + geom_density()
+plot.bds.sqrtKSS.density <- ggplot(bds.data.WRSR.KSS, aes(x = sqrtKSS)) + geom_density()
 
 # Shapiro test
 shapiro.test(bds.data.WRSR.KSS$sqrtKSS)
@@ -456,11 +460,6 @@ linearHypothesis(m.bds.WRSR.AM.exNB,
 ### Calculate and plot Relative Decision Weights for AM session
 ```{r,echo=FALSE}
 
-# Define function to calculate standardised Relative Dcision Weights
-calculate_relative_dw = function(LogLLA, LogBaserate){
-  rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
-  return(rdw)
-};
 
 # Calculate relative decision-weights
 

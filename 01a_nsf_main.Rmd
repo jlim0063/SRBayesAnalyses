@@ -1,6 +1,6 @@
 ---
 title: "**NSF study Main Data Analyses**"
-output: html_notebook
+
 ---
 
 ## Load libraries
@@ -9,32 +9,36 @@ output: html_notebook
 
 ## Load Packages
 
-library(dplyr)
-library(readxl)
+## Data wrangling
+library(dplyr)   
 library(tidyr)
+library(readxl)      # required for read_excel() method
 library(glue)
 
-
-# Visualisation libraries
+## Visualisation libraries
 library(ggplot2)
-library(ggsignif) # For significance bars on ggplots
 library(visreg)
+library(ggsignif)    # For significance bars on ggplots
 
-library(egg) # for ggarrange (panelling multiple ggplots)
-library(lme4)
-library(lmerTest)
-library(brms)
-library(emmeans)
+library(egg)         # required for ggarrange (panelling multiple ggplots)
 
-library(aod)
-library(car)   # For Chi-square test of Coefficient Equality `linearHypothesis`
-library(MuMIn)
-library(performance) # for check_collinearity function
-library(sjPlot) # This gives a summary output of the model in APA style. Use `tab_model(model)`
+## Modelling
+library(lme4)        # required for `Lmer() and glmer()` methods
+library(lmerTest)    # required for p-value approximations
+
+library(emmeans)     # required to retrieve least-square estimates, using `lsmeans()` and `emmeans`
 
 
-library(piecewiseSEM)
-library(DHARMa)
+library(aod)         # required to call model comparison methods, such as `AIC`, `BIC`
+library(car)         # required for Chi-square test of Coefficient Equality `linearHypothesis`
+library(MuMIn)       # required for r.squaredGLMM() function
+library(performance) # required for check_collinearity function
+library(sjPlot)      # required for `tab_model(model)`, which provides a formatted output of the model in APA style.
+
+library(DHARMa)      # required for residual inspection
+
+# # Other reserve libraries
+# library(piecewiseSEM)
 
 
 # Turn off scientific notation
@@ -42,114 +46,110 @@ options(scipen = 20)
 
 ```
 
-# Data Management
+### Additional function definition
+```{r}
+
+# To retrieve standardised coefficients, if needed
+lm.beta.lmer <- function(mod) {
+   b <- fixef(mod)[-1]
+   sd.x <- apply(getME(mod,"X")[,-1],2,sd)
+   sd.y <- sd(getME(mod,"y"))
+   b*sd.x/sd.y
+}
+
+# Calculate standardised Relative Decision Weights
+calculate_relative_dw = function(LogLLA, LogBaserate){
+  rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
+  return(rdw)
+};
+
+```
+
+---
+# Data Management Pt 1
 
 ```{r,echo=FALSE}
 
 # Read data
 nsf.data <- read_excel("./data/NSF_study_data/data_master.xlsx")
 
-
 # Check for duplicates
-nsf.data <- distinct(nsf.data)
+nsf.data <- nsf.data[duplicated(nsf.data) == FALSE,]
 
-nsf.data<- nsf.data[duplicated(nsf.data) == FALSE,]
-
-# Check variable names 
-names(nsf.data)
-
-
-```
-
-## Factorize and label Condition and Session
-
-```{r,echo=FALSE}
 # Convert Condition to factor
-typeof(nsf.data$Condition);
 nsf.data$Condition <- factor(nsf.data$Condition,
                              levels = c("WR", "TSD", "SR"));
-
 # Convert Session to factor variable
 nsf.data$Session <- factor(nsf.data$Session,
                            levels = c(1, 2),
                            labels = c("1st", "2nd"));
-                     
-
-# Create a subset with just SR and WR data, for now. 
-nsf.data.sr <- subset(nsf.data, Condition != 'TSD')
 
 
 ```
 
-------------------------------------------------------------------------
-
-# Data management
+# Data Management Pt 2
+Inspecting the participant IDs show that there are some participants who did not complete both WR and their assigned conditions.
 
 ## Participant ID breakdown
 
 ```{r, echo=FALSE}
-# Get number of participants who have WR data
-wr_pts <- unique(nsf.data[nsf.data$Condition == 'WR', ]$PtID)
-length(wr_pts)
-
-# Get number of participants with TSD data
+# Get number of participants that have each respective sleep condition
+wr_pts  <- unique(nsf.data[nsf.data$Condition == 'WR', ]$PtID)
 tsd_pts <- unique(nsf.data[nsf.data$Condition == 'TSD', ]$PtID)
-
-# Get number of participants with SR data
-sr_pts <- unique(nsf.data[nsf.data$Condition == 'SR', ]$PtID)
+sr_pts  <- unique(nsf.data[nsf.data$Condition == 'SR', ]$PtID)
 
 
 # Sort order
-wr_pts <- sort(wr_pts, decreasing = FALSE);
+wr_pts  <- sort(wr_pts, decreasing = FALSE);
 tsd_pts <- sort(tsd_pts, decreasing = FALSE);
-sr_pts <- sort(sr_pts, decreasing = FALSE);
+sr_pt   <- sort(sr_pts, decreasing = FALSE);
 
 # Print number of participants by condition
 length(wr_pts); length(tsd_pts); length(sr_pts)
 # Print total number of participants in whole dataset
 length(unique(nsf.data$PtID))
 
-# SR participants missing WR data
-setdiff(sr_pts, wr_pts)
-# TSD participants missing WR data
-setdiff(tsd_pts, wr_pts)
-# Participants with WR trials data, but missing their respective sleep loss trials data
-setdiff(wr_pts, c(sr_pts, tsd_pts)) # need to look at 41 again
+
+setdiff(sr_pts, wr_pts)             # SR participants missing WR data
+setdiff(tsd_pts, wr_pts)            # TSD participants missing WR data
+setdiff(wr_pts, c(sr_pts, tsd_pts)) # Participants with WR trials data, but missing their respective sleep loss trials data
+
+# need to look at 41 again
 ```
 
-From Sean:
-For the demographics (41, 50, 59, 60, 61), I can confirm all those people dropped out of the study or were withdrawn. Same with subj 03. Attached is an excel file with what I think is the full set of demographics (in Consented tab). There is also a "Dropped_Withdrawn" tab that has reasons for not completing. Most are legit, but note **subject 41 lied about his age**. He was actually outside our age range, so **should be dropped entirely**. The others I think you can keep the data you have.
+From inspection of eligibility data:
+- Data for #41 needs to be dropped completely due to not meeting age criteria. 
+- The following data should be dropped due to idiosyncratic reasons for malperformance on task (e.g. fell asleep during task)
+  - All trials for Participants 13, 22, 45
+  - TSD trials for Participant 15
+  - SR trials for Participant 22
+  - WR trials for Participant 58
 
-Participants that David dropped: 13, 15, 22, 45, 58
-Participants that should be dropped completely: 41. **should I drop 3 as well as Demographics record indicate noncompliance?**
 
 
 ```{r, echo = FALSE}
-# Store all the participants missing either condition in one array
-ineligible_pts <- c(setdiff(sr_pts, wr_pts),setdiff(tsd_pts, wr_pts),setdiff(wr_pts, c(sr_pts, tsd_pts)) )
 
-ineligible_pts <- c(ineligible_pts, c(13, 15, 22, 45)) # Add participants that David dropped
-ineligible_pts <- ineligible_pts[!ineligible_pts %in% c(3, 50,59,60,61)] # Re-add 50, 59, 60, 61 as their WR data is useful.
-ineligible_pts
+# Store all inegligible participant IDs in one array.
+nsf.ineligible_pts <- c(13, 22, 41, 45)
 
 ```
 
 ## Extract & concatenate participant `KSS` data
 
 ```{r, echo=FALSE}
-nsf.kss.data <- read.csv("./data/NSF_study_data/KSS_data.csv");
-nsf.kss.data <- nsf.kss.data[ , c("Subject", "Condition", 'KSS_wr', 'KSS_sl')];
+nsf.temp.KSS <- read.csv("./data/NSF_study_data/KSS_data.csv")
+nsf.temp.KSS <- nsf.temp.KSS[ , c("Subject", "Condition", 'KSS_wr', 'KSS_sl')];
 
 # Create new KSS column in nsf.data
-nsf.data$KSS = NA;
-pt_list <-  unique(nsf.data$PtID);
+nsf.data$KSS <- NA;
+pt_list      <-  unique(nsf.data$PtID);
 
 # Loop through participant ids and extract KSS values from `nsf.kss.data`
 for (id in pt_list){
-  if(id %in% nsf.kss.data$Subject){
-    KSS.WR <- nsf.kss.data[nsf.kss.data$Subject == id, ]$KSS_wr
-    KSS.SL <- nsf.kss.data[nsf.kss.data$Subject == id, ]$KSS_sl
-    nsf.data[nsf.data$PtID == id & nsf.data$Condition == "WR", ]$KSS <- KSS.WR
+  if(id %in% nsf.temp.KSS$Subject){
+    KSS.WR <- nsf.temp.KSS[nsf.temp.KSS$Subject == id, ]$KSS_wr
+    KSS.SL <- nsf.temp.KSS[nsf.temp.KSS$Subject == id, ]$KSS_sl
+    nsf.data[nsf.data$PtID == id & nsf.data$Condition == "WR", ]$KSS             <- KSS.WR
     nsf.data[nsf.data$PtID == id & nsf.data$Condition %in% c("TSD", "SR"), ]$KSS <- KSS.SL
     print(glue("KSS data for Subject ID {id} added."))
   } else {
@@ -157,23 +157,31 @@ for (id in pt_list){
   }
 }
 
+# Remove placeholder variables from global
+rm(pt_list); rm(nsf.temp.KSS)
 
 ```
 
-### View participants missing demographic/KSS information
+## Extract & conctatenate sex data from original demographic data file, for participants that are missing sex data
 
 ```{r}
 
 # Participants with missing demographic information
-pt_missingdemo <- unique(nsf.data[is.na(nsf.data$sex),]$PtID)
-print(pt_missingdemo);
+nsf.missing_sex <- unique(nsf.data[is.na(nsf.data$sex),]$PtID)
+nsf.missing_age <- unique(nsf.data[is.na(nsf.data$age),]$PtID)
+print(unique(c(nsf.missing_age, nsf.missing_sex)));
+
 
 # View participants missing KSS data. 
 a <- distinct(nsf.data, PtID, Condition,.keep_all = TRUE)
-print(a[is.na(a$KSS)==TRUE, 2:3 ]); pt_missing_kss <- a[is.na(a$KSS)==TRUE, 2:3 ]$PtID
+print(a[is.na(a$KSS)==TRUE, 2:3 ])
+nsf.missing_kss <- a[is.na(a$KSS)==TRUE, 2:3 ]$PtID
 
 # Add these participants to incomplete pt list
-nsf_incomplete_pts <- c(nsf_incomplete_pts, pt_missing_kss)
+nsf.incomplete_pts <- unique(c(nsf.missing_age, nsf.missing_sex, nsf.missing_kss));
+
+# Remove placeholder variables from global
+rm(a)
 
 ```
 
@@ -181,24 +189,15 @@ nsf_incomplete_pts <- c(nsf_incomplete_pts, pt_missing_kss)
 
 # Analyses
 
-## Drop ineligible participants
-
 ```{r}
-
-# Can use WR data, not SD for 15, 22
-# Can use SD for 58, not WR
-ineligible_pts <- unique(ineligible_pts) # make sure there's no duplicates
-
-print(ineligible_pts)
-ineligible_pts
 
 # Fill in missing demographic data if available
 nsf.data[nsf.data$PtID == 60, 'age'] <- 19 
 nsf.data[nsf.data$PtID == 60, 'sex'] <- 'M'
 nsf.data[nsf.data$PtID == 50, 'age'] <- 33 
 nsf.data[nsf.data$PtID == 50, 'sex'] <- 'F'
-nsf.data[nsf.data$PtID == 3, 'age'] <- 20
-nsf.data[nsf.data$PtID == 3, 'sex'] <- 'F'
+nsf.data[nsf.data$PtID == 3, 'age']  <- 20
+nsf.data[nsf.data$PtID == 3, 'sex']  <- 'F'
 nsf.data[nsf.data$PtID == 61, 'age'] <- 19
 nsf.data[nsf.data$PtID == 61, 'sex'] <- 'M'
 nsf.data[nsf.data$PtID == 59, 'age'] <- 23
@@ -209,55 +208,61 @@ nsf.data[nsf.data$PtID == 41, 'sex'] <- 'M'
 
 ```
 
+## Drop ineligible participants
+```{r, echo = FALSE}
+nsf.data <- nsf.data[!(nsf.data$PtID == 22 & nsf.data$Condition == 'SR'), ]  # Drop Participant 22's SR trials**
+nsf.data <- nsf.data[!(nsf.data$PtID == 15 & nsf.data$Condition == 'TSD'), ] # Drop Participant 15's TSD trials**
+nsf.data <- nsf.data[!(nsf.data$PtID == 58 & nsf.data$Condition == 'WR'), ]  # Drop Participant 58's WR trials
+
+# Drop all participants in ineligible list
+nsf.data <- nsf.data[!nsf.data$PtID %in% nsf.ineligible_pts, ]
+
+```
+
 ## KSS model
 
 ```{r, echo = FALSE}
+
 # Subset data such that each participant only has 1 KSS entry per condition
-nsf.data.kss <- distinct(nsf.data, PtID, Condition, .keep_all = TRUE)
-nsf.data.kss <- nsf.data.kss[!nsf.data.kss$PtID %in% ineligible_pts,]                       # Remove ineligible participants
-nsf.data.kss <- nsf.data.kss[!(nsf.data.kss$PtID == 58 & nsf.data.kss$Condition == 'WR'), ] # Remove participant 58's WR run
+nsf.data.KSS <- distinct(nsf.data, PtID, Condition, .keep_all = TRUE)
 
-
-
-nsf.data.kss
 
 ```
 
 ```{r, echo = FALSE}
-length(unique(nsf.data.kss$PtID))
+length(unique(nsf.data.KSS$PtID))
 # Check KSS distribution
-hist(nsf.data.kss$KSS)
+plot.nsf.KSS.hist   <- ggplot(nsf.data.KSS, aes(x = KSS)) + geom_density()
 
-nsf.data.kss$sex
 # Log transform KSS
-nsf.data.kss$logKSS <- log(nsf.data.kss$KSS)
+nsf.data.KSS$logKSS  <-log(nsf.data.KSS$KSS)
+plot.nsf.logKSS.hist <- hist(nsf.data.KSS$logKSS)
 
 # Build the KSS model
-m.nsf_KSS <- lmer(logKSS ~ 1 + Condition+ (1|PtID), nsf.data.kss)
+m.nsf_KSS <- lmer(logKSS ~ 1 + Condition+ (1|PtID), nsf.data.KSS)
 
  
 # View output
-summary(m.nsf_KSS)
 tab_model(m.nsf_KSS)
+
 ```
 
 ## Accuracy model
+
 ```{r, echo = FALSE}
 # Subset without noBrainers
+nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible pts
 
-
-nsf.data.b     <- nsf.data[nsf.data$NoBrainer == 0 & !nsf.data$PtID %in% ineligible_pts, ] # Remove ineligible pts
-nsf.data.b     <- nsf.data.b[!(nsf.data.b$PtID == 58 & nsf.data.b$Condition == 'WR'), ]    # Remove participant 58's WR run
 
 # Build accuracy model
-m.accuracy.nsf <- glmer(
+m.nsf.ACC <- glmer(
   IsCorrect ~ 1 + Condition + (1|PtID), 
   family = binomial('logit'),
-  data = nsf.data.b
+  data = nsf.data.exNB
 )
 
 # Code to call least-square marginal means on response scale
-emmeans(m.accuracy.nsf, specs = "Condition", type = "response")
+emmeans(m.nsf.ACC, specs = "Condition", type = "response")
   
 
 ```
@@ -268,125 +273,131 @@ emmeans(m.accuracy.nsf, specs = "Condition", type = "response")
 ```{r}
 
 
-length(unique(nsf.data.b[nsf.data.b$Condition == 'TSD',]$PtID))
-length(unique(nsf.data.b[nsf.data.b$Condition == 'SR',]$PtID))
-length(unique(nsf.data.b[nsf.data.b$Condition == 'WR', ]$PtID))
-length(unique(nsf.data.b$PtID))
+length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'TSD',]$PtID))
+length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'SR', ]$PtID))
+length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'WR', ]$PtID))
+length(unique(nsf.data.exNB$PtID))
 
-nsf.data.b
 
 #Build pooled model that excludes NoBrainer trials
-m.pool.b <- glmer(PtResp ~ 1 + Session + Condition*LogBaserate + Condition*LogLLA + 
+m.nsf.exNB <- glmer(PtResp ~ 1 + Session + Condition*LogBaserate + Condition*LogLLA + 
                     (1  |PtID),             
                   family = binomial('probit'),
                   # control = glmerControl(boundary.tol = 1e10),
-                  nsf.data.b);
+                  nsf.data.exNB);
 
 
-sum(fixef(m.pool.b))
-pnorm(1.998168)
+# Example of simple effect of LogLLA for SR participant, using LogLLA during SR condition
+# use pnorm() to convert into cumulative probability
+pnorm(.54 + .71 - .15 )
 
-pnorm(fixef(m.pool.b)[1] + fixef(m.pool.b)['LogBaserate'] + fixef(m.pool.b)['ConditionSR:LogBaserate'] ) #- pnorm(fixef(m.pool.b)[1])
-pnorm(fixef(m.pool.b))
+pnorm(fixef(m.nsf.exNB)[1] + fixef(m.nsf.exNB)['LogBaserate'] + fixef(m.nsf.exNB)['ConditionSR:LogBaserate'] ) #- pnorm(fixef(m.nsf.exNB)[1])
+pnorm(fixef(m.nsf.exNB))
 
-fixef(m.pool.b)
 
-tab_model(m.pool.b)
+tab_model(m.nsf.exNB)
 
 
 ```
+
+
+
+#### Normality of Residuals check
+```{r}
+# Check residuals
+sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);plotResiduals(sim_output)
+
+```
+
+
 ### Chi-square test of coefficients
 ```{r, echo = false}
 # Chi-square tests
-linearHypothesis(m.pool.b, c(" LogBaserate =  LogLLA"), rhs=NULL,
+linearHypothesis(m.nsf.exNB, c(" LogBaserate =  LogLLA"), rhs=NULL,
                  vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
 
-linearHypothesis(m.pool.b, c("ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
+linearHypothesis(m.nsf.exNB, c("ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
                  vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
 
-linearHypothesis(m.pool.b, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"), rhs=NULL,
+linearHypothesis(m.nsf.exNB, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"), rhs=NULL,
                  vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
 
 ```
+
 
 ### Plot Decision Weights
 
 ```{r, echo = FALSE}
 
-decision_weights.nsf <- tibble(.rows = 6)
-decision_weights.nsf$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
-decision_weights.nsf$information <-  c(rep(c("LogLLA", "LogBR"), 3))
+nsf.data.DW <- tibble(.rows = 6)
+nsf.data.DW$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
+nsf.data.DW$information <-  c(rep(c("LogLLA", "LogBR"), 3))
 
 
-decision_weights.nsf$ coefficients <- c(0.70921, 1.39835,
-                                        (0.70921-0.02467), (1.39835-0.02575),
-                                        (0.70921-0.14925), (1.39835-0.22994)
+nsf.data.DW$ coefficients <- c(0.711873, 1.387340,
+                                        (0.711873 - 0.027289), (1.387340 - 0.014667 ),
+                                        (0.711873 - 0.151878), (1.387340 - 0.218881)
                                         )
 
 
-decision_weights.nsf$ci_lower <- c(0.63565657 ,1.2636121,
-                                   0.5607272, 1.14676528,
-                                   0.43950169, 0.94879948);
+nsf.data.DW$ci_lower <- c(0.6392915, 1.2548443,
+                                   0.5613523, 1.1481704,
+                                   0.4401318, 0.9502206);
 
-decision_weights.nsf$ci_upper <- c(0.78277114, 1.53308538,
-                                   0.80834525, 1.59842865,
-                                   0.68041551, 1.38801353);
+nsf.data.DW$ci_upper <- c(0.7844552479, 1.519836474,
+                                   0.8078151152, 1.597176358,
+                                   0.6798578593, 1.386698082);
   
-decision_weights.nsf$condition <- factor(decision_weights.nsf$condition, levels = c("WR","TSD","SR"))
-decision_weights.nsf$information <- factor(decision_weights.nsf$information, levels = c("LogLLA", "LogBR"))
+nsf.data.DW$condition <- factor(nsf.data.DW$condition, levels = c("WR","TSD","SR"))
+nsf.data.DW$information <- factor(nsf.data.DW$information, levels = c("LogLLA", "LogBR"))
 
 
-dw_plot.nsf <- ggplot(data = decision_weights.nsf, aes( x = condition, y = coefficients , color =  information)) + 
+plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients , color =  information)) + 
   geom_point(size=  2.5) + 
   scale_y_continuous(limits = c(0, 2)) +
   
-  labs(title = "Decision Weights by Condition", x = "Condition", y = "Weight", color = "Information")+
-  scale_color_manual(labels = c("Log Likelihood", "Log Prior Odds"), values = c("blue", "red"))+
+  labs(title = "Decision Weights by Condition", x = "Condition", y = "Decision Weight", color = "Information")+
+  scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("blue", "red"))+
   
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
   theme_bw(base_size = 15) + theme(aspect.ratio =  2, axis.title = element_text(size = 16, face = "bold"))  
 
-
-ggsave(plot = dw_plot.nsf,
-       filename = "decision_weights_NSF.png",
+# Save as png with transparent background
+ggsave(plot = plot.nsf.DW,
+       filename = "img/nsf/nsf_decisionWeights.png",
        bg = "transparent");
+
+# Remove placeholder variables from global
 
 
 
 ```
 
+
 ### Plot Relative Decision Weights
 ```{r, echo = false}
 
-
-
 # Calculate relative decision-weights
 
-LogLLA      <-0.70921
-LogBaserate <-1.39835
-
-
-calculate_relative_dw = function(LogLLA, LogBaserate){
-    rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
-    return(rdw)
-};
+LogLLA      <- 0.711873
+LogBaserate <- 1.38734
 
 
 WR_RDW.nsf  <- calculate_relative_dw(LogLLA, LogBaserate);
-TSD_RDW.nsf <- calculate_relative_dw(LogLLA - .02467, LogBaserate - .02575)
-SR_RDW.nsf  <- calculate_relative_dw(LogLLA - .14925, LogBaserate - .22994)
+TSD_RDW.nsf <- calculate_relative_dw(LogLLA - 0.027289, LogBaserate - 0.014667)
+SR_RDW.nsf  <- calculate_relative_dw(LogLLA - 0.151878, LogBaserate - 0.218881)
 
-RDW.nsf <- tibble(.rows = 3);
-RDW.nsf$condition <- c("WR", "TSD", "SR");
-RDW.nsf$condition = factor(RDW.nsf$condition, levels = c("WR", "TSD", "SR"))
-RDW.nsf$RDW <- c(WR_RDW.nsf, TSD_RDW.nsf, SR_RDW.nsf);
+nsf.temp.RDW           <- tibble(.rows = 3);
+nsf.temp.RDW$condition <- c("WR", "TSD", "SR");
+nsf.temp.RDW$condition <- factor(nsf.temp.RDW$condition, levels = c("WR", "TSD", "SR"))
+nsf.temp.RDW$RDW       <- c(WR_RDW.nsf, TSD_RDW.nsf, SR_RDW.nsf);
 
-RDW_plot.nsf <- ggplot(data = RDW.nsf, aes(x = condition, y = RDW))+
+plot.nsf.RDW <- ggplot(data = nsf.temp.RDW, aes(x = condition, y = RDW))+
   geom_bar(
     stat = 'identity',
     width = 0.5, fill = c("#202A44", "#4E4187", "#9B2915")
   )+
-  xlab("Condition") + ylab("") +
+  xlab("Condition") + ylab("Relative Decision Weight") +
   geom_hline(yintercept = 0, linetype = 'dashed') +
   scale_y_continuous(limits = c(-1, 1)) +
   ggtitle(" ") +
@@ -395,67 +406,15 @@ RDW_plot.nsf <- ggplot(data = RDW.nsf, aes(x = condition, y = RDW))+
   
   
 # Save as png with transparent background
-ggsave( plot = RDW_plot.nsf,
-        filename = "rel_decision_weights_NSF.png",
+ggsave( plot = plot.nsf.RDW ,
+        filename = "img/nsf/nsf_relativeDecisionWeights.png",
         bg = "transparent")
 
 
+# Remove placeholder variables from global
+rm(WR_RDW.nsf);rm(TSD_RDW.nsf);rm(SR_RDW.nsf);rm(nsf.temp.RDW);rm(LogLLA);rm(LogBaserate)
 
 ```
 
 
-#### Normality of Residuals check
-```{r}
-# Check residuals
-sim_output <- simulateResiduals(m.pool.b, plot = F)
-
-plotQQunif(sim_output)
-plotResiduals(sim_output)
-```
-
-
-## SR Weight Analyses
-
-```{r, echo = FALSE}
-# Subset noBrainer trials from just the SR participants
-nsf.data.b.sr <- nsf.data.b[nsf.data.b$Condition=='WR'|nsf.data.b$Condition=='SR',]
-
-# Build SR model, without the NoBrainers
-m.SR.b <- glmer(PtResp ~  1 + Condition*LogBaserate + Condition*LogLLA + (1 |PtID), 
-                family = binomial('probit'),
-                data = nsf.data.b.sr);
-  
-# View output
-summary(m.SR.b)
-tab_model(m.SR.b)
-
-# Check residuals
-sim_output <- simulateResiduals(m.SR.b, plot = F)
-plotQQunif(sim_output)
-plotResiduals(sim_output)
-
-
-```
-
-## TSD weight Analyses
-
-```{r, echo = FALSE}
-
-# Subset noBrainer trials from just the TSD participants
-nsf.data.b.tsd <- nsf.data.b[nsf.data.b$Condition=='WR'|nsf.data.b$Condition=='TSD',]
-
-# Inspect number of pts that completed WR and TSD
-sort(unique(nsf.data.b.tsd[nsf.data.b.tsd$Condition == 'WR', ]$PtID));sort(unique(nsf.data.b.tsd[nsf.data.b.tsd$Condition == 'TSD', ]$PtID))
-
-
-# Build TSD model, without the NoBrainers (SINGULAR FIT ISSUE)
-m.TSD.b <- lmer(PtResp~ 1 + Condition*LogBaserate + Condition*LogLLA + (1|PtID), nsf.data.b.tsd)
-
-# View output
-summary(m.TSD) 
-summary(m.TSD.b)
-
-summary(m.TSD.b)
-tab_model(m.TSD.b)
-
-```
+END

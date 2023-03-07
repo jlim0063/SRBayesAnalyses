@@ -24,9 +24,25 @@ This repository contains the datasets and R working files used in the **{insert 
 ---
 ## 1. Performed Analyses
 
+The aim of the present paper was to investigate if Sleep Restriction (SR), had an effect on the ability of participants to integrate two distinct information sources on a probabilistic decision-making task. More details can be found in the paper itself. Here, we lay out the set of analyses performed in each Experiment. 
+
 ### **1.1 Manipulations Checks**
 
+The manipulation check serves to ensure that our manipulation of participants' sleep was strong enough to produce a noticeable effect. To achieve this, we used the Karolinska Sleepiness Scale as a measure of subjective sleepiness while participants were Well-Rested, and while they were under the effects of sleep loss.
+
+The general equation for a manipulation check model is as follows:
+$$ KSS = \alpha + \beta_1Condition + \epsilon $$
+where:  
+`KSS` = Scores on the Karolinska Sleepiness Scale  
+`Condition` = Sleep Condition
+
+In Experiment 1, as some participants were assgined to a Total Sleep Deprivation (TSD) condition, `Condition` has 3 levels, where the Well-Rested (WR) condition is used as the reference.
+
+In Experiment 2, as there were two testing sessions (AM/PM), `SessionTime` was included in the model, as well as an interaction term between `SessionTime` and `Condition`. This allowed us to obtain further insight into whether there were any differences in subjective sleepiness between morning and evening testing sessions, within each `Condition`. 
+
 ### **1.2 Accuracy Checks**
+
+
 
 ### **1.3 Probit Modelling: Decision Weights**
 
@@ -91,7 +107,8 @@ The following specifiers are common to analyses for both Experiments 1 and 2:
 * `ACC` - An accuracy check model, where participant choice of the more likely box is a function of sleep condition and other relevant 
 variables
 * `exNB` - Indicates the dataframe excludes *NoBrainer* trials (where Odds = 10/10 or 0/10)
-* `RDW`  - Standardised Relative Decision Weights
+* `DW` - Decision weights derived from probit model coefficients
+* `RDW` - Standardised Relative Decision Weights
 * `WR`, `SR`, `TSD` (only for Exp. 1) and `CM` (only for Exp. 2) - Sleep condition specifiers  
 
 ---

@@ -5,6 +5,7 @@ date: '2022-11-01'
 
 ---
 ### Load packages
+
 ```{r,echo=FALSE}
 
 ## Data wrangling
@@ -21,7 +22,7 @@ library(ggsignif)    # For significance bars on ggplots
 library(egg)         # required for ggarrange (panelling multiple ggplots)
 
 ## Modelling
-library(lme4)        # required for `Lmer() and glmer()` methods
+library(lme4)        # required for `lmer() and glmer()` methods
 library(lmerTest)    # required for p-value approximations
 
 library(emmeans)     # required to retrieve least-square estimates, using `lsmeans()` and `emmeans`
@@ -43,6 +44,7 @@ library(DHARMa)      # required for residual inspection
 options(scipen = 20)
 
 ```
+
 ---
 
 ### Additional function definition
@@ -96,6 +98,7 @@ bds.data$SessionTime <- factor(bds.data$SessionTime,
 
 
 ```
+
 
 ```{r, echo=FALSE}
 
@@ -253,8 +256,27 @@ shapiro.test(bds.data.WRSR.KSS$sqrtKSS)
 ```{r,echo=FALSE}
 
 # Create model
-m.bds.KSS <- lmer(sqrtKSS ~ 1 + SessionTime*Condition + (1|PtID),
+m.bds.KSS <- lmer(StartKSS ~ 1 + SessionTime*Condition + (1|PtID),
                data = bds.data.WRSR.KSS)
+
+m.bds.KSS1 <- lmer(StartKSS ~ 1 + SessionTime + Condition + (1|PtID),
+               data = bds.data.WRSR.KSS)
+m.bds.KSS2 <- lmer(StartKSS ~ 1 + SessionTime*Condition + (1|PtID),
+               data = bds.data.WRSR.KSS)
+
+anova(m.bds.KSS1, m.bds.KSS2)
+
+# Follow up models using separate AM and PM data
+bds.data.WR.KSS <- bds.data.WRSR.KSS[bds.data.WRSR.KSS$Condition == "WR",]
+bds.data.SR.KSS <- bds.data.WRSR.KSS[bds.data.WRSR.KSS$Condition == "SR",]
+
+# Model of AM only
+m.bds.KSS.WR <- lmer(StartKSS ~ 1 + SessionTime + (1|PtID),
+                     data = bds.data.WR.KSS)
+
+m.bds.KSS.SR <- lmer(StartKSS ~ 1 + SessionTime + (1|PtID),
+                     data = bds.data.SR.KSS)
+
 
 summary(m.bds.KSS); lm.beta.lmer(m.bds.KSS); confint(m.bds.KSS, method = "Wald")
 
@@ -285,22 +307,56 @@ sim_output <- simulateResiduals(m.bds.KSS, plot = F); plotQQunif(sim_output); pl
 
 ``` {r, echo = FALSE}
 
+# lsmeans of pooled model with SessionTime x Condition interaction [do not use]
 bds.data.KSS.lsmeans <- as_tibble(
   lsmeans(m.bds.KSS, spec = c("Condition", "SessionTime", by = c("SessionTime")
                            ))
   )
 
-plot.KSS.lsmeans <-ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y = lsmean, color = Condition)) + 
-    geom_point(size = 3) + geom_line(aes(group = Condition)) + scale_y_continuous(limits = c(1, 3))+
-    labs(title = "Square-root KSS scores by Condition", x ="SessionTime", y = "Square-root KSS Score") +
-    scale_color_manual(values = c("#202A44", "#9F1D35")) +
-    geom_errorbar(aes(ymin = bds.data.KSS.lsmeans$lower.CL, ymax = bds.data.KSS.lsmeans$upper.CL), color = '#595959', width = 0.1) +
-    theme_bw() + theme(aspect.ratio = 0.9)
+# Get lsmeans from each follow-up model
+bds.data.WR.KSS.lsmeans <- as_tibble(
+  lsmeans(m.bds.KSS.WR, spec = "SessionTime")
+  ) %>% mutate(Condition = "WR")
+bds.data.SR.KSS.lsmeans <- as_tibble(
+  lsmeans(m.bds.KSS.SR, spec = "SessionTime")
+) %>% mutate(Condition = "SR")
+
+# Bind into one tibble
+bds.data.KSS.lsmeans <- rbind(bds.data.WR.KSS.lsmeans, bds.data.SR.KSS.lsmeans)%>% mutate(Condition = factor(Condition, levels = c("WR", "SR")))
+
+
+bds.plot.KSS.lsmeans <- ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y = lsmean, group = Condition)) +
+  geom_line(aes(color = Condition)) +
+  geom_point(size = 2 , aes(color= Condition)) +
+  scale_color_manual(values = c("blue", "red")) +
+  scale_shape_manual(values = c(17, 19)) +
+  scale_y_continuous(limits = c(2, 7)) +
+  geom_errorbar(aes(ymin = bds.data.KSS.lsmeans$lower.CL, ymax = bds.data.KSS.lsmeans$upper.CL, color = Condition),  width = 0.1) + 
+  theme_classic() + 
+  theme(
+    aspect.ratio = 0.9, 
+    axis.title = element_text(size = 18), axis.text = element_text(size = 15), 
+    axis.line = element_line(colour = 'black', linewidth = 2),
+    legend.title = element_text(size = 15), legend.text = element_text(size = 12)
+    )
+
+
+# fill = c("#999DA0", "#777B7E", "#C7C6C1")
+bds.plot.KSS.lsmeans <- ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y =  lsmean, fill= Condition, label = lsmean)) +
+  geom_bar( position = position_dodge(), stat = "identity", color = "black", linewidth = 1) +
+  
+  scale_fill_manual(values = c("#F1F1F1", "#7B7B7B")) +
+  scale_y_continuous(limits = c(0, 8)) +
+  labs(x = "Session Time", y = "KSS score") + 
+  geom_errorbar(aes(ymin = bds.data.KSS.lsmeans$lower.CL, ymax = bds.data.KSS.lsmeans$upper.CL), color = "#222021", width = 0.2, linewidth = 1, position = position_dodge(.9))+
+  theme_classic() + 
+  theme(aspect.ratio = 0.9, axis.line = element_line(colour = 'black', linewidth = 2), axis.title = element_text(size = 18), axis.text = element_text(size = 15), legend.title  = element_text(size = 15), legend.text = element_text(size = 12)) 
+  # geom_text(aes(label = round(lsmean, 2)), position = position_dodge(1), vjust = -5, size = 5.5)
 
 # Save as png with transparent background
 ggsave(
-  plot = plot.KSS.lsmeans,
-  filename = "KSS_score.png",
+  plot = bds.plot.KSS.lsmeans,
+  filename = "img/bds/BDS_KSS_score.png",
   bg = "transparent"
   )
 
@@ -312,57 +368,73 @@ ggsave(
 
 ```{r,echo=FALSE}
 
-# Accuracy model excluding NoBrainer trials
+# Create Order variable to represent no. of times participant has done the task
+bds.data.WRSR.exNB$Order <- ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "AM", 1,
+                                   ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.exNB$NormalFirst == 0 & bds.data.WRSR.exNB$SessionTime == "AM", 3 , 4)))
 
-m.bds.ACC <-glmer(
-  IsCorrect~ 1 + Condition*SessionTime + (1|PtID),
+# Accuracy model excluding NoBrainer trials
+m.bds.ACC1<-glmer(
+  IsCorrect~ 1 + Order + Condition + SessionTime + (1|PtID),
   family = binomial("logit"),
   bds.data.WRSR.exNB
   );
 
+m.bds.ACC2<-glmer(
+  IsCorrect~ 1 + Order + Condition*SessionTime + (1|PtID),
+  family = binomial("logit"),
+  bds.data.WRSR.exNB
+  );
+
+anova(m.bds.ACC1, m.bds.ACC2)
 
 # Get R-squared
 r.squaredGLMM(m.bds.ACC)
 
-# Check collienarity
+# Check collinearity
 check_collinearity(m.bds.ACC)
 
 
 # Model output in APA style
 tab_model(
   m.bds.ACC,
-  show.est = TRUE,
+  # show.est = TRUE,
   show.se = TRUE,
   string.se = "SE",
   string.ci = "95% CI",
-  string.est = "Estimate"
+  string.est = "Estimate",
+  digits = 3
   );
 
 # Get accuracy least-square estimates
-bds.data.ACC.lsmeans <- lsmeans(m.bds.ACC, 
+bds.data.ACC <- lsmeans(m.bds.ACC1, 
                                 spec = c("Condition", "SessionTime"),  
                                 by = c("Condition"), type = "response"
                                 );
 
-bds.data.ACC.lsmeans <- as_tibble(bds.data.ACC.lsmeans);   # Coerce to tibble
+bds.data.ACC <- as_tibble(bds.data.ACC);   # Coerce to tibble
 
 
 # Plot accuracy least-square estimates
-plot.bds.ACC.lsmeans <- ggplot(bds.data.ACC.lsmeans, aes(x = Condition, y = prob, color = SessionTime )) + 
+plot.bds.ACC <- ggplot(bds.data.ACC, aes(x = Condition, y = prob, color = SessionTime )) + 
   geom_point(size = 3) +
   scale_y_continuous(limits = c(0.5, 1)) +
-  labs(title = "Trial Accuracy by AM/PM Sessions", x = "Condition", y = "Probability of Accurate Response") +
-  scale_color_manual(values = c("#202A44", "#9F1D35")) + 
-  geom_errorbar(aes(ymin = bds.data.ACC.lsmeans$asymp.LCL, ymax = bds.data.ACC.lsmeans$asymp.UCL), color = '#595959', width = 0.1) + 
-  theme_bw()+theme(aspect.ratio = 1.5) ;
+  labs( x = "Condition", y = "Probability of Accurate Response", color = "Session") +
+  scale_color_manual(values = c("black", "black")) + 
+  geom_errorbar(aes(ymin = bds.data.ACC$asymp.LCL, ymax = bds.data.ACC$asymp.UCL), color = '#595959', width = 0.1) + 
+  theme_bw()+
+  theme(aspect.ratio = 1.5, axis.title = element_text(size=18), axis.text=element_text(size=15),
+        legend.title=element_text(size=15), legend.text=element_text(size =12))
+
+
 
 # Facet wrap the plot
-plot.bds.ACC.lsmeans <- plot.bds.ACC.lsmeans + facet_wrap(~SessionTime, ncol = 2);  
+plot.bds.ACC <- plot.bds.ACC + facet_wrap(~SessionTime, ncol = 2) +theme(strip.text = element_text(size = 15));  
 
 # Save as png with transparent background
 ggsave(
-  plot = plot.bds.ACC.lsmeans,
-  filename = "img/bds/trial_accuracy.png",
+  plot = plot.bds.ACC,
+  filename = "img/bds/BDS_trial_accuracy.png",
   bg = "transparent"
   )
 
@@ -412,7 +484,6 @@ m.bds.WRSR.AM.exNB <- glmer(PtResp ~ 1 + Condition*LogLLA + Condition*LogBaserat
              bds.data.WRSR.AM.exNB
              )
 
-
 # Print summary and confint
 summary(m.bds.WRSR.AM.exNB); confint(m.bds.WRSR.AM.exNB, method="Wald",level = 0.95, oldNames="FALSE")
 # Get R-squared
@@ -429,13 +500,12 @@ tab_model(
   );
 
 # [EXPERIMENTAL] Create scaled variables for LogLLA and LogBaserate on the standard deviation scale
-
 bds.data.WRSR.AM.exNB$LogLLA_scaled      <- scale(bds.data.WRSR.AM.exNB$LogLLA)
 bds.data.WRSR.AM.exNB$LogBaserate_scaled <- scale(bds.data.WRSR.AM.exNB$LogBaserate)
 
 ```
-#### Check Residuals
 
+#### Check Residuals
 ```{r,echo=FALSE}
 sim_output <- simulateResiduals(m.bds.WRSR.AM.exNB, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
 
@@ -485,19 +555,19 @@ bds.data.AM.RDW$condition <- factor(bds.data.AM.RDW$condition, levels = c("WR_AM
          
 plot.bds.AM.RDW <- ggplot(data=bds.data.AM.RDW, aes(x = condition, y = relative_dw)) + 
   geom_bar(
-    stat ="identity", width = 0.4, fill= c("#202A44", "#9B2915")
+    stat ="identity", width = 0.4, fill= c("#D3D3D3", "#7B7B7B"), color = c("black", "black")
     ) +
-  xlab("Condition") + ylab("") +    # Rename x and y axes
-  geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
-  scale_y_continuous(limits = c(-1,1))+   # set y axis limits
-  ggtitle("AM Session") +  # add title
-  geom_text(aes(label = round(relative_dw, 2)), nudge_y = -0.04)+  # add text values of each bars
+  xlab("Condition") + ylab("") +                     # Rename x and y axes
+  geom_hline(yintercept = 0, linetype = 'solid') +  # adds line on y_intercept = 0
+  scale_y_continuous(limits = c(-.6, .6))+              # set y axis limits
+  labs(title = "AM Session", y = "Relative Decision Weight", x = "Condition")   +       # add title and axis title
+  # geom_text(aes(label = round(relative_dw, 2)), nudge_y = -0.04)+  # add text values of each bars
   #geom_signif(comparisons = list(c("WR_AM", "SR_AM")), annotations = "N.S.", y_position = .1) + # Add significance lines
-  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14) ,axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
+  theme_bw() + theme(aspect.ratio =  1.5, axis.text = element_text(size = 15) ,axis.title=element_text(size=18), plot.title=element_text(size=18)) +
   scale_x_discrete(labels = c("WR", "SR"))
 
 # Remove placeholder variables from global
-rm(LogLLA);rm(LogBaserate);rm(WR.AM.RDW);rm(SR.AM.RDW);rm(SR_LogLLA);rm(SR_LogBaserate);rm(condition);rm(relative_dw);
+rm(LogLLA); rm(LogBaserate); rm(WR.AM.RDW); rm(SR.AM.RDW); rm(SR_LogLLA); rm(SR_LogBaserate); rm(condition); rm(relative_dw);
 
 ```
 
@@ -510,6 +580,9 @@ m.bds.WRSR.PM.exNB <- glmer(
   family = binomial('probit'),
   bds.data.WRSR.PM.exNB
   );
+
+
+
 
 # Print summary & confint
 summary(m.bds.WRSR.PM.exNB); confint(m.bds.WRSR.PM.exNB, method = "Wald");
@@ -580,26 +653,24 @@ bds.temp.PM.RDW$condition = factor(bds.temp.PM.RDW$condition, levels = c("WR_PM"
 
 # Plot the Relative Decision Weights
 plot.bds.PM.RDW <- ggplot(data = bds.temp.PM.RDW, aes(x = condition, y = RDW)) + 
-  geom_bar(
-    stat ="identity", 
-    width = 0.4, fill= c("#202A44", "#9B2915")
-  ) +
-  xlab("Condition") + ylab("") +    # Rename x and y axes
-  geom_hline(yintercept = 0, linetype = 'dashed') +  # adds line on yintercept = 0
-  scale_y_continuous(limits = c(-1,1))+   # set y axis limits
-  ggtitle("PM Session") +  # add title
-  geom_text(aes(label = round(RDW, 2)), nudge_y = -0.04)+  # add text values of each bars
+  geom_bar(stat ="identity", width = 0.4, fill= c("#D3D3D3", "#7B7B7B"), color = c("black", "black")) +
+  xlab("Condition")  +    # Rename x and y axes
+  geom_hline(yintercept = 0, linetype = 'solid') +  # adds line on yintercept = 0
+  scale_y_continuous(limits = c(-.6,.6))+   # set y axis limits
+  labs(title = "PM Session", y = "") +  # add title
+  # geom_text(aes(label = round(RDW, 3)), nudge_y = -0.04)+  # add text values of each bars
   #geom_signif(comparisons = list(c("WR_AM", "SR_AM")), annotations = "N.S.", y_position = .1) + # Add significance lines
-  theme_bw() + theme(aspect.ratio =  2, axis.text = element_text(size = 14), axis.title=element_text(size=16,face="bold"), plot.title= element_text(size = 18)) +
+  theme_bw() + theme(aspect.ratio =  1.5, axis.text = element_text(size = 15), axis.title=element_text(size=18), plot.title= element_text(size = 18)) +
   scale_x_discrete(labels = c("WR", "SR"))
 
+  
 # Place AM and PM RDW plots side by side in one single figure
 plot.bds.all.RDW <- ggarrange(plot.bds.AM.RDW, plot.bds.PM.RDW, ncol = 2 , nrow = 1)
 
 
 # Save as png with transparent background
 ggsave( plot = plot.bds.all.RDW,
-        filename = "img/bds/bds_relativeDecisionWeights.png",
+        filename = "img/bds/BDS_relativeDecisionWeights.png",
         bg = "transparent")
 
 
@@ -617,7 +688,7 @@ rm(LogLLA);rm(LogBaserate);rm(RDW_SR);rm(RDW_WR);rm(condition);rm(RDW);rm(bds.te
 # Create placeholder variables and fill with respective data
 condition    <- c("WR", "WR", "SR", "SR", "WR", "WR", "SR", "SR");
 session      <- c(rep("AM", 4), rep("PM", 4));
-information  <- c(rep(c("LogLLA", "LogBR"), 4));
+information  <- c(rep(c("Evidence", "Base Rate"), 4));
 
 coefficients <- c(0.30879,  0.77677,  0.2452,  0.65133,  0.29171,  0.72799,  0.23351,  0.77166);
 
@@ -631,29 +702,38 @@ bds.temp.DW  <- tibble(condition, session, information, coefficients, se_lower, 
 
 bds.temp.DW$condition   <- factor(bds.temp.DW$condition, levels = c("WR","SR"))
 bds.temp.DW$session     <- factor(bds.temp.DW$session, levels = c("AM", "PM"))
-bds.temp.DW$information <- factor(bds.temp.DW$information, levels = c("LogLLA", "LogBR"))
+bds.temp.DW$information <- factor(bds.temp.DW$information, levels = c("Base Rate", "Evidence"))
 
-plot.bds.DW <- ggplot(data = bds.temp.AM.DW, aes( x = condition, y = coefficients , color =  information)) + 
-  geom_point(size=  2.5) + 
-  scale_y_continuous(limits = c(0.0,1)) +
-  labs(title = "Decision Weights by Condition", x = "Condition", y = "Weight", color = "Information")+
-  scale_color_manual(labels = c("Draw Outcome","Base Rate Odds"), values = c("blue", "red"))+
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
-  theme_bw(base_size = 14) + theme(aspect.ratio =  2, axis.title = element_text(face = "bold"))  
+plot.bds.DW <- ggplot(data = bds.temp.DW, aes( x = condition, y = coefficients , shape =  information)) + 
+  geom_point(size= 3) + 
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_shape_manual(values = c(17, 19))+
+  # scale_color_manual(labels = c("Draw Outcome","Base Rate Odds"), values = c("blue", "red"))+
+  labs(x = "Condition", y = "Decision Weight", shape = "Information")+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),linewidth = 1, color = '#595959', width = 0.1)+ # Add error bars
+  theme_bw(base_size = 18) + 
+  theme(aspect.ratio =  2,  axis.title = element_text(size=15), axis.text=element_text(size=15),
+        legend.text=element_text(size=15), legend.title = element_text(size = 15))  
 
 # Facet wrap plots
-plot.bds.DW <- plot.bds.DW  + facet_wrap(~session, ncol = 2);
+plot.bds.DW <- plot.bds.DW  + facet_wrap(~session, ncol = 2) + theme(strip.text = element_text(size = 15), panel.border = element_rect(size = 2));
 
 
 # Save as png with transparent background
 ggsave( plot = plot.bds.DW,
-        filename = "img/bds/bds_decisionWeights.png",
+        filename = "img/bds/BDS_decisionWeights.png",
         bg = "transparent")
 
 # Remove placeholder variables
 rm(condition);rm(session);rm(information);rm(coefficients);rm(se_lower);rm(se_upper);rm(ci_lower);rm(ci_upper);rm(bds.temp.DW)
 
 ```
+
+## Check proportion of easy to hard trials (Easy trials are those with post_prob >.8 or <.2)
+
+Number of Easy trials = 1781
+Number of Hard trials = 1999
+Proportion that are easy = 47.11%
 
 # END
 

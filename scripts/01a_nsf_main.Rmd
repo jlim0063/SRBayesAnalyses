@@ -235,15 +235,51 @@ length(unique(nsf.data.KSS$PtID))
 plot.nsf.KSS.hist   <- ggplot(nsf.data.KSS, aes(x = KSS)) + geom_density()
 
 # Log transform KSS
-nsf.data.KSS$logKSS  <-log(nsf.data.KSS$KSS)
+nsf.data.KSS$logKSS  <- log(nsf.data.KSS$KSS)
+nsf.data.KSS$sqrtKSS <- sqrt(nsf.data.KSS$KSS)
 plot.nsf.logKSS.hist <- hist(nsf.data.KSS$logKSS)
 
-# Build the KSS model
-m.nsf_KSS <- lmer(logKSS ~ 1 + Condition+ (1|PtID), nsf.data.KSS)
+# Build the KSS modelconf
+m.nsf.KSS <- lmer(KSS ~ 1 + Condition+ (1|PtID), nsf.data.KSS)
 
- 
 # View output
-tab_model(m.nsf_KSS)
+tab_model(m.nsf.KSS)
+
+```
+
+
+#### Normality of Residuals check
+```{r}
+
+# Check residuals
+sim_output <- simulateResiduals(m.nsf.KSS, plot = F); plotQQunif(sim_output);plotResiduals(sim_output)
+
+
+```
+
+### Plot KSS model
+``` {r, echo = FALSE}
+
+nsf.data.KSS.lsmeans <- as_tibble(lsmeans(m.nsf.KSS, specs = "Condition")) %>% 
+  slice(match(c("WR", "SR", "TSD"), Condition)) %>%                  # Rearrange such that order is WR, SR, TSD
+  mutate(Condition = factor(Condition, levels = c("WR","SR","TSD"))) # Factorize condition such that ggplot follows custom order
+
+# Define plot 
+
+nsf.plot.KSS.lsmeans <- ggplot(nsf.data.KSS.lsmeans, aes(x = Condition, y = lsmean)) +
+  geom_col(fill = c("#999DA0", "#777B7E", "#C7C6C1"), colour = "black", linewidth =1) +
+  scale_y_continuous(limits = c(0, 8)) +
+  labs(x = "Condition", y = "KSS score") + 
+  geom_errorbar(aes(ymin = nsf.data.KSS.lsmeans$lower.CL, ymax = nsf.data.KSS.lsmeans$upper.CL), color = "#222021", width = 0.2, linewidth = 1)+
+  theme_classic() + theme(aspect.ratio = .75, axis.title = element_text(size = 18),  axis.text = element_text(size = 18), axis.line = element_line(linewidth = 2)) 
+  # geom_text(aes(label = round(lsmean, 2)), position = position_dodge(1), vjust = -5, size = 5.5)
+
+ggsave(
+  plot = nsf.plot.KSS.lsmeans,
+  filename = "img/nsf/KSS_score.png",
+  bg = "transparent"
+  )
+
 
 ```
 
@@ -256,14 +292,38 @@ nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible pts
 
 # Build accuracy model
 m.nsf.ACC <- glmer(
-  IsCorrect ~ 1 + Condition + (1|PtID), 
+  IsCorrect ~ 1 + Session + Condition + (1|PtID), 
   family = binomial('logit'),
   data = nsf.data.exNB
 )
 
+
+
+```
+
+### Plot accuracy model
+```{r, echo = FALSE}
+
 # Code to call least-square marginal means on response scale
-emmeans(m.nsf.ACC, specs = "Condition", type = "response")
-  
+nsf.data.ACC <- as_tibble(emmeans(m.nsf.ACC, spec = c( "Condition"), type = "response"))
+nsf.data.ACC$Condition <- factor(nsf.data.ACC$Condition, levels = c("WR", "SR", "TSD"))
+
+
+nsf.plot.ACC <- ggplot(nsf.data.ACC, aes(x = factor(Condition, levels = c("WR","SR","TSD")), y = prob)) + 
+  geom_point(size = 3) +
+  scale_y_continuous(limits = c(0.5, 1)) +
+  labs(x = "Condition", y = "Probability of Accurate Response") +
+  scale_color_manual(values = c("#202A44", "#9F1D35")) + 
+  geom_errorbar(aes(ymin = nsf.data.ACC$asymp.LCL, ymax = nsf.data.ACC$asymp.UCL), color = '#595959', width = 0.1) + 
+  theme_bw()+theme(aspect.ratio = 0.75, axis.title = element_text(size=18), axis.text=element_text(size=15)) ;
+
+ggsave(
+  plot = nsf.plot.ACC,
+  filename = "img/nsf/NSF_taskAccuracy.png",
+  bg = "transparent"
+  )
+
+
 
 ```
 
@@ -280,11 +340,13 @@ length(unique(nsf.data.exNB$PtID))
 
 
 #Build pooled model that excludes NoBrainer trials
-m.nsf.exNB <- glmer(PtResp ~ 1 + Session + Condition*LogBaserate + Condition*LogLLA + 
+m.nsf.exNB <- glmer(PtResp ~ 1 + Condition*LogBaserate + Condition*LogLLA + 
                     (1  |PtID),             
                   family = binomial('probit'),
                   # control = glmerControl(boundary.tol = 1e10),
                   nsf.data.exNB);
+
+table(nsf.data.exNB$Session)
 
 
 # Example of simple effect of LogLLA for SR participant, using LogLLA during SR condition
@@ -307,20 +369,26 @@ tab_model(m.nsf.exNB)
 # Check residuals
 sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);plotResiduals(sim_output)
 
+
 ```
 
 
 ### Chi-square test of coefficients
 ```{r, echo = false}
 # Chi-square tests
-linearHypothesis(m.nsf.exNB, c(" LogBaserate =  LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+linearHypothesis(m.nsf.exNB, c(" LogBaserate =  LogLLA"), rhs=NULL, test = c("Chisq"),
+                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
 
-linearHypothesis(m.nsf.exNB, c("ConditionSR:LogBaserate =  ConditionSR:LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+linearHypothesis(m.nsf.exNB, c("ConditionSR:LogBaserate  =   ConditionSR:LogLLA"), rhs=NULL,
+                 test = c("Chisq"),
+                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
 
-linearHypothesis(m.nsf.exNB, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"), rhs=NULL,
-                 vcov.=NULL, singular.ok=FALSE, verbose=FALSE)
+linearHypothesis(m.nsf.exNB, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"), test = "Chisq",
+                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
+
+
+
+
 
 ```
 
@@ -331,40 +399,41 @@ linearHypothesis(m.nsf.exNB, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"
 
 nsf.data.DW <- tibble(.rows = 6)
 nsf.data.DW$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
-nsf.data.DW$information <-  c(rep(c("LogLLA", "LogBR"), 3))
+nsf.data.DW$information <-  c(rep(c("Evidence", "Base Rate"), 3))
 
 
-nsf.data.DW$ coefficients <- c(0.711873, 1.387340,
-                                        (0.711873 - 0.027289), (1.387340 - 0.014667 ),
-                                        (0.711873 - 0.151878), (1.387340 - 0.218881)
+nsf.data.DW$ coefficients <- c(0.71187, 1.38736,
+                                        (0.711873 - 0.02729), (1.387346 - 0.0147 ),
+                                        (0.711873 - 0.15188), (1.387346 - 0.21893)
                                         )
 
 
-nsf.data.DW$ci_lower <- c(0.6392915, 1.2548443,
+nsf.data.DW$ci_lower <- c(0.6392888, 1.2548631,
                                    0.5613523, 1.1481704,
                                    0.4401318, 0.9502206);
 
-nsf.data.DW$ci_upper <- c(0.7844552479, 1.519836474,
+nsf.data.DW$ci_upper <- c(0.7844538490, 1.5198590053,
                                    0.8078151152, 1.597176358,
                                    0.6798578593, 1.386698082);
   
-nsf.data.DW$condition <- factor(nsf.data.DW$condition, levels = c("WR","TSD","SR"))
-nsf.data.DW$information <- factor(nsf.data.DW$information, levels = c("LogLLA", "LogBR"))
+nsf.data.DW$condition <- factor(nsf.data.DW$condition, levels = c("WR","SR","TSD"))
+nsf.data.DW$information <- factor(nsf.data.DW$information, levels = c("Base Rate", "Evidence"))
 
 
-plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients , color =  information)) + 
-  geom_point(size=  2.5) + 
-  scale_y_continuous(limits = c(0, 2)) +
+plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients, shape = information)) + 
+  geom_point(size=  3, aes(shape = information)) +                          
+  scale_y_continuous(limits = c(0, 2)) +                                      # Sets y axis range      
+  labs(x = "Condition", y = "Decision Weight", shape = "Information") +        # Changes labels (axis titles and legend title)
   
-  labs(title = "Decision Weights by Condition", x = "Condition", y = "Decision Weight", color = "Information")+
-  scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("blue", "red"))+
+  scale_shape_manual(values = c(17, 19)) +
+  # scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("#696969", "#3E424B"))+
   
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.1)+ # Add error bars
-  theme_bw(base_size = 15) + theme(aspect.ratio =  2, axis.title = element_text(size = 16, face = "bold"))  
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.2)+ # Add error bars
+  theme_bw(base_size = 15) + theme(aspect.ratio =  1.2, axis.title = element_text(size = 15), axis.text = element_text(size = 15), panel.border = element_rect(linewidth = 2))  
 
 # Save as png with transparent background
 ggsave(plot = plot.nsf.DW,
-       filename = "img/nsf/nsf_decisionWeights.png",
+       filename = "img/nsf/NSF_decisionWeights.png",
        bg = "transparent");
 
 # Remove placeholder variables from global
@@ -388,26 +457,26 @@ TSD_RDW.nsf <- calculate_relative_dw(LogLLA - 0.027289, LogBaserate - 0.014667)
 SR_RDW.nsf  <- calculate_relative_dw(LogLLA - 0.151878, LogBaserate - 0.218881)
 
 nsf.temp.RDW           <- tibble(.rows = 3);
-nsf.temp.RDW$condition <- c("WR", "TSD", "SR");
-nsf.temp.RDW$condition <- factor(nsf.temp.RDW$condition, levels = c("WR", "TSD", "SR"))
-nsf.temp.RDW$RDW       <- c(WR_RDW.nsf, TSD_RDW.nsf, SR_RDW.nsf);
+nsf.temp.RDW$condition <- c("WR", "SR", "TSD");
+nsf.temp.RDW$condition <- factor(nsf.temp.RDW$condition, levels = c("WR", "SR", "TSD"))
+nsf.temp.RDW$RDW       <- c(WR_RDW.nsf, SR_RDW.nsf,TSD_RDW.nsf);
 
 plot.nsf.RDW <- ggplot(data = nsf.temp.RDW, aes(x = condition, y = RDW))+
   geom_bar(
     stat = 'identity',
-    width = 0.5, fill = c("#202A44", "#4E4187", "#9B2915")
+    width = 0.5, fill = c("#999DA0", "#777B7E","#C7C6C1"), colour = "#212121"
   )+
   xlab("Condition") + ylab("Relative Decision Weight") +
-  geom_hline(yintercept = 0, linetype = 'dashed') +
-  scale_y_continuous(limits = c(-1, 1)) +
+  geom_hline(yintercept = 0, linetype = 'solid') +
+  scale_y_continuous(limits = c(-0.5, 0.5)) +
   ggtitle(" ") +
-  geom_text(aes(label = round(RDW, 2)), nudge_y = -0.04) + #Add text value on each bar
-  theme_bw() + theme(aspect.ratio = 2, axis.text = element_text(size = 14), axis.title = element_text(size = 16, face = "bold"), plot.title = element_text(size = 18)) 
+  # geom_text(aes(label = round(RDW, 3)), nudge_y = -0.04) + #Add text value on each bar
+  theme_bw() + theme(aspect.ratio = 0.75, axis.text = element_text(size = 15), axis.title = element_text(size = 18)) 
   
   
 # Save as png with transparent background
 ggsave( plot = plot.nsf.RDW ,
-        filename = "img/nsf/nsf_relativeDecisionWeights.png",
+        filename = "img/nsf/NSF_relativeDecisionWeights.png",
         bg = "transparent")
 
 
@@ -415,6 +484,12 @@ ggsave( plot = plot.nsf.RDW ,
 rm(WR_RDW.nsf);rm(TSD_RDW.nsf);rm(SR_RDW.nsf);rm(nsf.temp.RDW);rm(LogLLA);rm(LogBaserate)
 
 ```
+
+## Check proportion of easy to hard trials (Easy trials are those with post_prob >.8 or <.2)
+
+Number of easy trials = 850
+Number of hard trials = 1870
+Proportion that are easy = 31.25%
 
 
 END

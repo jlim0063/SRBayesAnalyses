@@ -6,5 +6,6 @@
 .RDataTmp
 data/
 output/
+bayes_graph.xlsx
+old/
 
-02d_bds_hardtrials_analyses.R

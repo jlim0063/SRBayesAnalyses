@@ -1,6 +1,6 @@
 # Sleep Restriction Impairs Integration of Multiple Information Sources in Probabilistic Decision-Making: Data Analyses
 
-This repository contains the datasets and R working files used in the **{insert year}** paper, titled ***"Sleep Restriction Impairs Integration of Multiple Information Sources in Probabilistic Decision-Making"***, published in **{journal name}**. This README serves as a brief overview of the analyses performed in this paper, as well as naming conventions used within the R project session. 
+This repository contains the datasets and R working files used in the **{insert year}** paper, titled ***"Sleep Restriction Impairs Integration of Multiple Information Sources in Probabilistic Decision-Making"***, published in **{journal name}**. Here, we provide a brief overview of the analyses performed in this paper, as well as naming conventions used within the R project session. 
 
 ## **CONTENT**
 1. [Performed Analyses](#1-performed-analyses)

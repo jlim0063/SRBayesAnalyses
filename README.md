@@ -17,7 +17,7 @@ This repository contains the datasets and R working files used in the **{insert 
 
 ---
 
-## 1. Performed Analyses
+## 1. PERFORMED ANALYSES
 
 The aim of the present paper was to investigate if Sleep Restriction (SR), had an effect on the ability of participants to integrate two distinct information sources on the Bayes Decisions Task, a probabilistic dual-choice decision-making task. 
 
@@ -48,6 +48,21 @@ In Experiment 2, as there were two testing sessions (AM/PM), `SessionTime` was i
 ### **1.2 Trial Accuracy**
 
 Details of how we determined an accurate response for each trial are laid out in the paper's supplementary section. 
+
+Briefly, the base logistic regression model is:
+
+$$ IsCorrect = \alpha + \beta_1Condition + \beta_2Order + \epsilon $$
+
+where:
+* $IsCorrect$ is a dichotomous variable 1 if participant chose the "correct" response, and 0 otherwise
+* $Condition$ represents the respective sleep conditions during which the trial was administered. This is a factored variable, where:
+    * In Experiment 1, has 3 levels: WR, SR, TSD
+    * In Experiment 2, has 2 levels: WR, SR
+* $Order$ represents the $n^{th}$ time participant has been administered the Bayes Decisions Task.
+    * In Experiment 1, there are 2 sessions.
+    * In Experiment 2, because there are AM & PM sessions within each *Condition*, there are 4 sessions.
+
+For Experiment 2, a $Session$ predictor and its interaction with $Condition$ were also added, to determine if trial accuracy differed between AM and PM sessions within each Condition. The interaction was not significant, and hence dropped from the results. 
 
 ### **1.3 Probit Modelling: Decision Weights**
 
@@ -120,7 +135,6 @@ The following specifiers are common to analyses for both Experiments 1 and 2:
 variables
 * `exNB` - Indicates the dataframe excludes *NoBrainer* trials (where Odds = 10/10 or 0/10)
 * `DW` - Decision weights derived from probit model coefficients
-* `RDW` - Standardised Relative Decision Weights
 * `WR`, `SR`, `TSD` (only for Exp. 1) and `CM` (only for Exp. 2) - Sleep condition specifiers  
 
 ---

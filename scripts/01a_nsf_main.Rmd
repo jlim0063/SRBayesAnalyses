@@ -422,6 +422,4 @@ plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients, 
 ```
 
 
-
-
 END

@@ -14,11 +14,6 @@ This repository contains the datasets and R working files used in the **{insert 
     - 2.3 [Plot-naming Conventions](#23-plot-naming-conventions)
     - 2.4 [`lmer` & `glmer` Model-naming Conventions](#24-model-naming-conventions)
     - 2.5 [Specifiers](#25-specifiers)
-3. [Glossary](#3-glossary)
-    - 3.1 [File Names](#31-file-names)
-    - 3.2 [Dataframe & Tibble Names](#32-dataframe--tibble-names)
-    - 3.3 [Plot Names](#33-plot-names)
-    - 3.4 [Model Names](#34-model-names)
 
 
 ---
@@ -112,22 +107,6 @@ variables
 * `WR`, `SR`, `TSD` (only for Exp. 1) and `CM` (only for Exp. 2) - Sleep condition specifiers  
 
 ---
-## 3. GLOSSARY
-
-### **3.1 FILE NAMES**
-<br></br>
-
-### **3.2 DATAFRAME & TIBBLE NAMES**
-<br></br>
-
-### **3.3 PLOT NAMES**
-<br></br>
-
-### **3.4 MODEL NAMES**
-<br></br>
-
-
-
 
 
 

@@ -1,3 +1,8 @@
+# # NOTE:
+# These analyses are purely exploratory, and are not reported in the paper. 
+# Models predicting weights for each participants have problematic residuals,
+# likely unreliable due to lack of sufficient trials
+
 # Get vector of pts who have completed SR trials
 bds.sr_pts = unique(bds.data[bds.data$Condition == "SR",]$PtID)
 

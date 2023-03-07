@@ -8,6 +8,10 @@ old_df <- read_xlsx("data/2008_study_data/bayes_dataset.xlsx") %>%
   mutate(Subject2 = as.factor(Subject2))
 
 
+# Prefix of 'jdm' = Dickinson & Drummond 2008 trial configurationd ata.
+# Prefix of 'nsf' = Experiment 1
+# Prefix of 'bds' = Experiment 2
+
 # Plot boxplots of posteriors 
 jdm_posteriors <- ggplot(data = old_df, aes(x = Subject2, y = BayesPosteriors)) +
   geom_boxplot(aes(fill = TSD)) +
@@ -65,7 +69,6 @@ ggsave(
 
 
 # Plot boxplots of likelihood
-
 
 
 jdm_evidence <- ggplot(data = old_df, aes(x = Subject2, y = LogLLA)) +

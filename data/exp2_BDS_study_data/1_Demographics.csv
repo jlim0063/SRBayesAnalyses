@@ -1,0 +1,75 @@
+﻿ID,Completed_Study,Sex,isNCfirst,Completed 1 week,Condition,DOB,Height,Weight,BMI (kg/m^2),Date of Admit,Start of At-home Week 1,Age,Ethnicity,Currently a student?,Education (Currently Undertaking),Education (Highest level achieved),Employment,Occupation
+1,No,F,,1,SR,27/1/1993,159.20,49.95,19.71,25/3/2018,18/3/2018,25,,,,,,
+2,Yes,F,1,1,SR,21/3/1988,152.00,49.80,21.55,25/3/2018,18/3/2018,29,South-East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Unemployed,
+5,Yes,M,1,1,CM,26/9/1996,162.60,60.30,22.81,24/6/2018,17/6/2018,21,Caucasian,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+6,No,M,,1,CM,13/6/1997,166.60,67.70,24.39,24/6/2018,17/6/2018,21,,,,,,
+7,Yes,F,0,1,SR,4/2/1992,162.00,52.95,20.18,12/8/2018,5/8/2018,26,North-East Asian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Kitchen Hand
+10,Yes,M,0,1,SR,1/12/1994,179.00,76.15,23.77,18/11/2018,11/11/2018,23,South-East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Working part time,Nandoca
+11,Yes,M,0,1,SR,14/2/1986,166.80,69.50,24.98,12/8/2018,5/8/2018,32,Hazara Afghani,No,,Secondary School,Unemployed,
+13,Yes,F,0,1,CM,19/4/1994,165.00,52.00,19.10,9/9/2018,2/9/2018,24,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Tutor
+14,No,F,,1,SR,10/4/1992,160.90,63.70,24.61,12/8/2018,5/8/2018,26,North-East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+15,No,M,,,CM,27/1/1994,171.50,66.80,22.71,9/9/2018,2/9/2018,24,South-East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Working part time,Customer Service
+17,Yes,F,0,1,CM,28/9/1988,161.00,73.20,28.24,14/4/2019,7/4/2019,30,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,PhD Candidate
+18,Yes,M,0,1,CM,21/7/1981,163.80,65.60,24.45,9/9/2018,2/9/2018,37,South-East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+19,No,M,,1,CM,9/12/1976,190.20,84.80,23.44,9/9/2018,2/9/2018,41,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Occupational Therapist
+20,No,F,,,CM,5/11/1985,164.70,72.15,26.60,7/10/2018,30/9/2018,32,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working part time,Tutor
+21,Yes,M,0,1,SR,3/6/1996,173.50,86.15,28.62,18/11/2018,11/11/2018,22,Indian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+23,Yes,M,0,1,SR,23/7/1995,175.20,69.20,22.54,18/11/2018,11/11/2018,23,South-East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,Student/Tutor - Lab Assistant
+25,No,F,,,CM,21/10/1984,159.80,58.40,22.87,21/10/2018,14/10/2018,33,South-East Asian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working full time,Finance Analyst
+26,No,F,,,,3/12/1991,160.30,71.60,27.86,21/10/2018,14/10/2018,26,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,History Teacher
+27,Yes,M,1,1,CM,8/5/1986,183.90,69.30,20.49,21/10/2018,14/10/2018,32,Caucasian/North African,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Musician
+28,Yes,F,0,1,CM,6/12/1993,173.90,81.80,27.05,20/1/2019,13/1/2019,25,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Event Manager
+29,Yes,F,0,1,CM,27/10/1989,161.50,51.00,19.55,20/1/2019,13/1/2019,29,South-East Asian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Childcare educator
+31,No,F,,,CM,24/12/1992,150.20,50.70,22.47,20/1/2019,13/1/2019,26,Chinese,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Unemployed,
+33,Yes,F,1,1,SR,1/8/1986,164.40,62.80,23.24,17/2/2019,10/2/2019,32,Sub-Saharan African,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Unemployed,
+34,Yes,M,1,1,SR,23/11/1994,175.90,85.95,27.78,17/2/2019,10/2/2019,24,Sri Lankan,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Working full time,Head of Operations/Marketing 
+35,Yes,M,1,1,SR,14/5/1996,175.20,61.85,20.15,17/2/2019,10/2/2019,22,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Furniture removal 
+36,Yes,F,0,1,SR,5/5/1987,166.60,64.70,23.31,17/3/2019,10/3/2019,31,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Data Entry
+37,Yes,F,0,1,SR,5/2/1994,179.00,69.55,21.71,17/3/2019,10/3/2019,25,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+38,No,M,,,SR,15/9/1995,162.20,58.55,22.25,17/3/2019,10/3/2019,23,Dravidians,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Retail Assistant
+41,Yes,M,0,1,CM,14/4/1977,173.40,75.70,25.18,14/4/2019,7/4/2019,41,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working full time,IT Trainer
+43,No,F,,,SR,13/6/1994,162.56,63.50,24.03,19/5/2019,12/5/2019,24,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Guest Service Agent
+44,No,F,,,CM,17/12/1995,158.60,68.75,27.33,7/7/2019,30/6/2019,23,South Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Student
+48,Yes,F,1,1,SR,28/8/1992,161.40,57.25,21.98,19/5/2019,12/5/2019,26,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working full time,Teacher
+50,Yes,F,1,1,CM,8/8/1994,174.00,64.00,21.14,7/7/2019,30/6/2019,24,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+52,No,F,,,SR,26/1/1991,162.10,66.95,25.48,19/5/2019,12/5/2019,28,"Middle-Eastern, North African, Somali Peninsula",No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Unemployed,
+56,Yes,M,1,1,CM,16/2/1995,171.80,60.40,20.46,7/7/2019,30/6/2019,24,North-East Asian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working part time,Assistant Building manager
+58,No,M,,,CM,23/12/1997,163.00,65.90,24.80,4/8/2019,28/7/2019,21,South Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Unemployed,
+60,Yes,M,0,1,CM,20/4/1981,185.70,69.75,20.23,4/8/2019,28/7/2019,38,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Self employed 
+61,Yes,F,0,1,SR,15/5/1987,163.50,63.75,23.85,15/9/2019,8/9/2019,32,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Software Developer
+64,Yes,M,0,1,CM,22/7/1975,188.20,69.35,19.58,4/8/2019,28/7/2019,44,Caucasian,No,,Secondary School,Working casually,health food shop assistant
+66,No,F,,,SR,27/9/1995,159.60,47.40,18.61,15/9/2019,8/9/2019,23,South-East Asian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Waitress/Bartender
+68,No,F,,,SR,27/8/1997,158.30,61.00,24.34,15/9/2019,8/9/2019,22,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Administrator
+69,Yes,M,1,1,SR,23/6/1994,178.20,65.15,20.52,29/9/2019,22/9/2019,25,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Musician
+70,Yes,F,0,1,SR,7/5/1990,155.70,57.85,23.86,13/10/2019,6/10/2019,29,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Student
+71,Yes,F,0,1,SR,26/8/1991,154.00,65.85,27.77,13/10/2019,6/10/2019,28,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Postal Clerk
+72,No,M,,,SR,23/2/1990,173.80,64.25,21.27,27/10/2019,20/10/2019,29,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+73,Yes,F,1,1,CM,1/7/1997,163.30,57.95,21.73,24/11/2019,17/11/2019,22,East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+75,No,F,,,CM,21/7/1997,170.70,64.75,22.22,24/11/2019,17/11/2019,22,North-East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,student
+77,No,F,,,CM,14/4/1992,166.60,69.30,24.97,24/11/2019,17/11/2019,27,Caucasian,Yes,TAFE/apprenticeship,TAFE/apprenticeship,Working casually,HR 
+80,Yes,F,1,1,CM,29/12/1995,150.70,47.35,20.85,24/11/2019,17/11/2019,23,East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+81,No,M,,,SR,1/1/1996,169.90,63.10,21.86,,###############################################################################################################################################################################################################################################################,#NUM!,South Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working part time,Sandwich Artist
+86,No,M,,,SR,15/9/1990,164.20,72.75,26.98,19/1/2020,12/1/2020,29,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,removalist
+87,Yes,M,1,1,SR,2/7/1990,174.20,71.45,23.55,19/1/2020,12/1/2020,29,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working casually,Filmmaker
+94,No,F,,,SR,31/1/1997,167.00,64.00,22.95,19/1/2020,12/1/2020,22,Caucasian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+96,No,F,,,CM,24/3/1996,155.80,62.80,25.87,15/3/2020,8/3/2020,23,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Working full time,Cleaner
+98,Yes,F,1,1,SR,15/5/1996,158.60,59.45,23.63,16/2/2020,9/2/2020,23,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+102,No,F,,1,SR,29/10/1985,165.80,77.15,28.07,16/2/2020,9/2/2020,34,East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+103,No,M,,,SR,10/4/1996,175.60,66.35,21.52,16/2/2020,9/2/2020,23,Caucasian,No,,"Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+104,Yes,M,1,,SR,6/12/1989,162.70,76.30,28.82,15/3/2020,8/3/2020,30,South Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working casually,Uber
+105,No,M,,1,CM,10/5/1988,185.00,85.20,24.89,15/3/2020,8/3/2020,31,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Software engineer
+106,Yes,F,1,1,SR,23/5/1992,158.20,52.35,20.92,28/6/2020,21/6/2020,28,South-East Asian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working full time,sales contractor
+118,Yes,M,,1,SR,13/11/1991,169.30,74.25,25.90,29/11/2020,22/11/2020,29,North-East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Unemployed,
+119,Yes,F,1,1,SR,13/3/1998,163.30,71.20,26.70,11/1/2021,4/1/2021,22,South Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,Brand ambassador 
+122,Yes,M,1,1,SR,31/8/1997,176.00,70.00,22.60,1/11/2020,25/10/2020,23,South-East Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Undergraduate University Degree (Bachelor, Honours)",Working full time,PHD Student
+134,Yes,F,1,1,SR,20/7/1992,179.00,77.00,24.03,1/11/2020,25/10/2020,28,Caucasian,No,,TAFE/apprenticeship,Working casually,ESD Consultant
+135,Yes,M,,1,SR,21/10/1999,186.00,98.50,28.47,29/11/2020,22/11/2020,21,Caucasian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,Supermarket 
+137,Yes,M,1,1,SR,15/10/1996,171.90,75.80,25.65,11/1/2021,4/1/2021,24,Caucasian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,retail/hospitality/freelance AV
+139,No,M,,1,SR,20/1/1999,175.90,67.25,21.74,7/2/2021,31/1/2021,22,South-East Asian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,Kitchen hand 
+141,No,F,,,SR,13/3/1998,173.80,54.00,17.88,7/2/2021,31/1/2021,22,Caucasian,Yes,"Undergraduate University Degree (Bachelor, Honours)",Secondary School,Working casually,Student/hospitality
+142,Yes,M,,1,SR,11/4/1975,168.00,66.45,23.54,7/3/2021,28/2/2021,45,South-East Asian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working full time,Entrepreneur
+143,No,F,,1,SR,2/4/1994,171.90,55.35,18.73,7/3/2021,28/2/2021,26,Caucasian,No,,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working part time,Technical consultant 
+144,No,M,,,SR,23/3/1991,188.60,70.65,19.86,7/3/2021,28/2/2021,29,South Asian,Yes,"Postgraduate University Degree (Graduate Diploma, Masters, PhD)","Postgraduate University Degree (Graduate Diploma, Masters, PhD)",Working casually,Food delivery
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,

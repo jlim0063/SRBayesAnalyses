@@ -3,7 +3,7 @@ title: "**NSF study Main Data Analyses**"
 
 ---
 
-## Load libraries
+### Load libraries
 
 ```{r,echo=FALSE}
 
@@ -37,7 +37,7 @@ library(sjPlot)      # required for `tab_model(model)`, which provides a formatt
 
 library(DHARMa)      # required for residual inspection
 
-# # Other reserve libraries
+# Miscellaneous libraries not used
 # library(piecewiseSEM)
 
 
@@ -47,9 +47,10 @@ options(scipen = 20)
 ```
 
 ### Additional function definition
+
 ```{r}
 
-# To retrieve standardised coefficients, if needed
+# To retrieve standardised coefficients, if needed (not used)
 lm.beta.lmer <- function(mod) {
    b <- fixef(mod)[-1]
    sd.x <- apply(getME(mod,"X")[,-1],2,sd)
@@ -57,21 +58,16 @@ lm.beta.lmer <- function(mod) {
    b*sd.x/sd.y
 }
 
-# Calculate standardised Relative Decision Weights
-calculate_relative_dw = function(LogLLA, LogBaserate){
-  rdw = (LogLLA-LogBaserate)/(LogLLA + LogBaserate);
-  return(rdw)
-};
-
 ```
 
 ---
+
 # Data Management Pt 1
 
-```{r,echo=FALSE}
+```{r,echo=FALSE, results = "hide"}
 
 # Read data
-nsf.data <- read_excel("./data/NSF_study_data/data_master.xlsx")
+nsf.data <- read_excel("../data/exp1_NSF_study_data/data_master.xlsx")
 
 # Check for duplicates
 nsf.data <- nsf.data[duplicated(nsf.data) == FALSE,]
@@ -92,7 +88,7 @@ Inspecting the participant IDs show that there are some participants who did not
 
 ## Participant ID breakdown
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, results = "hide"}
 # Get number of participants that have each respective sleep condition
 wr_pts  <- unique(nsf.data[nsf.data$Condition == 'WR', ]$PtID)
 tsd_pts <- unique(nsf.data[nsf.data$Condition == 'TSD', ]$PtID)
@@ -106,6 +102,7 @@ sr_pt   <- sort(sr_pts, decreasing = FALSE);
 
 # Print number of participants by condition
 length(wr_pts); length(tsd_pts); length(sr_pts)
+
 # Print total number of participants in whole dataset
 length(unique(nsf.data$PtID))
 
@@ -136,8 +133,8 @@ nsf.ineligible_pts <- c(13, 22, 41, 45)
 
 ## Extract & concatenate participant `KSS` data
 
-```{r, echo=FALSE}
-nsf.temp.KSS <- read.csv("./data/NSF_study_data/KSS_data.csv")
+```{r, echo=FALSE, results = "hide"}
+nsf.temp.KSS <- read.csv("../data/exp1_NSF_study_data/KSS_data.csv")
 nsf.temp.KSS <- nsf.temp.KSS[ , c("Subject", "Condition", 'KSS_wr', 'KSS_sl')];
 
 # Create new KSS column in nsf.data
@@ -187,7 +184,11 @@ rm(a)
 
 ---
 
-# Analyses
+# Data Management Pt 3
+
+## Fill in missing participant demographic data
+
+These data were retrieved from the participant demographic file.
 
 ```{r}
 
@@ -209,6 +210,7 @@ nsf.data[nsf.data$PtID == 41, 'sex'] <- 'M'
 ```
 
 ## Drop ineligible participants
+
 ```{r, echo = FALSE}
 nsf.data <- nsf.data[!(nsf.data$PtID == 22 & nsf.data$Condition == 'SR'), ]  # Drop Participant 22's SR trials**
 nsf.data <- nsf.data[!(nsf.data$PtID == 15 & nsf.data$Condition == 'TSD'), ] # Drop Participant 15's TSD trials**
@@ -218,6 +220,11 @@ nsf.data <- nsf.data[!(nsf.data$PtID == 58 & nsf.data$Condition == 'WR'), ]  # D
 nsf.data <- nsf.data[!nsf.data$PtID %in% nsf.ineligible_pts, ]
 
 ```
+
+
+---
+
+# Analyses
 
 ## KSS model
 
@@ -234,7 +241,7 @@ length(unique(nsf.data.KSS$PtID))
 # Check KSS distribution
 plot.nsf.KSS.hist   <- ggplot(nsf.data.KSS, aes(x = KSS)) + geom_density()
 
-# Log transform KSS
+# Transformations (not used)
 nsf.data.KSS$logKSS  <- log(nsf.data.KSS$KSS)
 nsf.data.KSS$sqrtKSS <- sqrt(nsf.data.KSS$KSS)
 plot.nsf.logKSS.hist <- hist(nsf.data.KSS$logKSS)
@@ -246,9 +253,7 @@ m.nsf.KSS <- lmer(KSS ~ 1 + Condition+ (1|PtID), nsf.data.KSS)
 tab_model(m.nsf.KSS)
 
 ```
-
-
-#### Normality of Residuals check
+### Normality of Residuals check
 ```{r}
 
 # Check residuals
@@ -258,6 +263,7 @@ sim_output <- simulateResiduals(m.nsf.KSS, plot = F); plotQQunif(sim_output);plo
 ```
 
 ### Plot KSS model
+
 ``` {r, echo = FALSE}
 
 nsf.data.KSS.lsmeans <- as_tibble(lsmeans(m.nsf.KSS, specs = "Condition")) %>% 
@@ -274,18 +280,20 @@ nsf.plot.KSS.lsmeans <- ggplot(nsf.data.KSS.lsmeans, aes(x = Condition, y = lsme
   theme_classic() + theme(aspect.ratio = .75, axis.title = element_text(size = 18),  axis.text = element_text(size = 18), axis.line = element_line(linewidth = 2)) 
   # geom_text(aes(label = round(lsmean, 2)), position = position_dodge(1), vjust = -5, size = 5.5)
 
-ggsave(
-  plot = nsf.plot.KSS.lsmeans,
-  filename = "img/nsf/KSS_score.png",
-  bg = "transparent"
-  )
+
+# Save plot
+# ggsave(
+#   plot = nsf.plot.KSS.lsmeans,
+#   filename = "img/nsf/KSS_score.png",
+#   bg = "transparent"
+#   )
 
 
 ```
 
 ## Accuracy model
 
-```{r, echo = FALSE}
+```{r}
 # Subset without noBrainers
 nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible pts
 
@@ -297,11 +305,13 @@ m.nsf.ACC <- glmer(
   data = nsf.data.exNB
 )
 
-
+# Print model summary
+summary(m.nsf.ACC)
 
 ```
 
 ### Plot accuracy model
+
 ```{r, echo = FALSE}
 
 # Code to call least-square marginal means on response scale
@@ -317,54 +327,43 @@ nsf.plot.ACC <- ggplot(nsf.data.ACC, aes(x = factor(Condition, levels = c("WR","
   geom_errorbar(aes(ymin = nsf.data.ACC$asymp.LCL, ymax = nsf.data.ACC$asymp.UCL), color = '#595959', width = 0.1) + 
   theme_bw()+theme(aspect.ratio = 0.75, axis.title = element_text(size=18), axis.text=element_text(size=15)) ;
 
-ggsave(
-  plot = nsf.plot.ACC,
-  filename = "img/nsf/NSF_taskAccuracy.png",
-  bg = "transparent"
-  )
+
+# Save plot
+# ggsave(
+#   plot = nsf.plot.ACC,
+#   filename = "img/nsf/NSF_taskAccuracy.png",
+#   bg = "transparent"
+#   )
 
 
 
 ```
 
 
-## Pooled probit model
+## Pooled probit model (Decision Weights)
 
 ```{r}
 
-
-length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'TSD',]$PtID))
-length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'SR', ]$PtID))
-length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'WR', ]$PtID))
-length(unique(nsf.data.exNB$PtID))
+# View length of unique IDs
+# length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'TSD',]$PtID))
+# length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'SR', ]$PtID))
+# length(unique(nsf.data.exNB[nsf.data.exNB$Condition == 'WR', ]$PtID))
+# length(unique(nsf.data.exNB$PtID))
 
 
 #Build pooled model that excludes NoBrainer trials
 m.nsf.exNB <- glmer(PtResp ~ 1 + Condition*LogBaserate + Condition*LogLLA + 
                     (1  |PtID),             
                   family = binomial('probit'),
-                  # control = glmerControl(boundary.tol = 1e10),
                   nsf.data.exNB);
 
-table(nsf.data.exNB$Session)
-
-
-# Example of simple effect of LogLLA for SR participant, using LogLLA during SR condition
-# use pnorm() to convert into cumulative probability
-pnorm(.54 + .71 - .15 )
-
-pnorm(fixef(m.nsf.exNB)[1] + fixef(m.nsf.exNB)['LogBaserate'] + fixef(m.nsf.exNB)['ConditionSR:LogBaserate'] ) #- pnorm(fixef(m.nsf.exNB)[1])
-pnorm(fixef(m.nsf.exNB))
-
-
-tab_model(m.nsf.exNB)
-
+# Print model summary
+summary(m.nsf.exNB)
 
 ```
 
+### Normality of Residuals check
 
-
-#### Normality of Residuals check
 ```{r}
 # Check residuals
 sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);plotResiduals(sim_output)
@@ -373,29 +372,10 @@ sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);pl
 ```
 
 
-### Chi-square test of coefficients
-```{r, echo = false}
-# Chi-square tests
-linearHypothesis(m.nsf.exNB, c(" LogBaserate =  LogLLA"), rhs=NULL, test = c("Chisq"),
-                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
-
-linearHypothesis(m.nsf.exNB, c("ConditionSR:LogBaserate  =   ConditionSR:LogLLA"), rhs=NULL,
-                 test = c("Chisq"),
-                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
-
-linearHypothesis(m.nsf.exNB, c("ConditionTSD:LogBaserate =  ConditionTSD:LogLLA"), test = "Chisq",
-                 vcov.=NULL, singular.ok=FALSE, verbose=TRUE)
-
-
-
-
-
-```
-
-
 ### Plot Decision Weights
 
 ```{r, echo = FALSE}
+
 
 nsf.data.DW <- tibble(.rows = 6)
 nsf.data.DW$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
@@ -432,64 +412,16 @@ plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients, 
   theme_bw(base_size = 15) + theme(aspect.ratio =  1.2, axis.title = element_text(size = 15), axis.text = element_text(size = 15), panel.border = element_rect(linewidth = 2))  
 
 # Save as png with transparent background
-ggsave(plot = plot.nsf.DW,
-       filename = "img/nsf/NSF_decisionWeights.png",
-       bg = "transparent");
-
-# Remove placeholder variables from global
+# ggsave(plot = plot.nsf.DW,
+#        filename = "img/nsf/NSF_decisionWeights.png",
+#        bg = "transparent");
 
 
 
-```
-
-
-### Plot Relative Decision Weights
-```{r, echo = false}
-
-# Calculate relative decision-weights
-
-LogLLA      <- 0.711873
-LogBaserate <- 1.38734
-
-
-WR_RDW.nsf  <- calculate_relative_dw(LogLLA, LogBaserate);
-TSD_RDW.nsf <- calculate_relative_dw(LogLLA - 0.027289, LogBaserate - 0.014667)
-SR_RDW.nsf  <- calculate_relative_dw(LogLLA - 0.151878, LogBaserate - 0.218881)
-
-nsf.temp.RDW           <- tibble(.rows = 3);
-nsf.temp.RDW$condition <- c("WR", "SR", "TSD");
-nsf.temp.RDW$condition <- factor(nsf.temp.RDW$condition, levels = c("WR", "SR", "TSD"))
-nsf.temp.RDW$RDW       <- c(WR_RDW.nsf, SR_RDW.nsf,TSD_RDW.nsf);
-
-plot.nsf.RDW <- ggplot(data = nsf.temp.RDW, aes(x = condition, y = RDW))+
-  geom_bar(
-    stat = 'identity',
-    width = 0.5, fill = c("#999DA0", "#777B7E","#C7C6C1"), colour = "#212121"
-  )+
-  xlab("Condition") + ylab("Relative Decision Weight") +
-  geom_hline(yintercept = 0, linetype = 'solid') +
-  scale_y_continuous(limits = c(-0.5, 0.5)) +
-  ggtitle(" ") +
-  # geom_text(aes(label = round(RDW, 3)), nudge_y = -0.04) + #Add text value on each bar
-  theme_bw() + theme(aspect.ratio = 0.75, axis.text = element_text(size = 15), axis.title = element_text(size = 18)) 
-  
-  
-# Save as png with transparent background
-ggsave( plot = plot.nsf.RDW ,
-        filename = "img/nsf/NSF_relativeDecisionWeights.png",
-        bg = "transparent")
-
-
-# Remove placeholder variables from global
-rm(WR_RDW.nsf);rm(TSD_RDW.nsf);rm(SR_RDW.nsf);rm(nsf.temp.RDW);rm(LogLLA);rm(LogBaserate)
 
 ```
 
-## Check proportion of easy to hard trials (Easy trials are those with post_prob >.8 or <.2)
 
-Number of easy trials = 850
-Number of hard trials = 1870
-Proportion that are easy = 31.25%
 
 
 END

@@ -29,6 +29,8 @@ The two files containing the codes for analyses reported in both papers are:
 
 Datasets containing trial configuration and participant response data can be found within the respective `data_master.csv` files within each Experiment data subfolder.
 
+OpenSesame files for the Bayes Decisions Task can be found in `materials` directory.
+
 
 ### **1.1 Manipulations Checks**
 

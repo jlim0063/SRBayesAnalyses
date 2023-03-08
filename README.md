@@ -19,13 +19,16 @@ This repository contains the datasets and R working files used in the **{insert 
 
 ## 1. PERFORMED ANALYSES
 
-The aim of the present paper was to investigate if Sleep Restriction (SR), had an effect on the ability of participants to integrate two distinct information sources on the Bayes Decisions Task, a probabilistic dual-choice decision-making task. 
+The aim of the present paper was to investigate if Sleep Restriction (SR), had an effect on the ability of participants to integrate two distinct information sources on the Bayes Decisions Task, a probabilistic dual-choice decision-making task. Here, we lay out the set of analyses performed in each Experiment. 
 
-**The two files containing the codes for analyses reported in both papers are:**
+### **Main scripts and data files**
+
+The two files containing the codes for analyses reported in both papers are:
 * Experiment 1: `scripts/01a_nsf_main.Rmd` 
 * Experiment 2: `scripts/02a_bds_main.Rmd`
 
-Here, we lay out the set of analyses performed in each Experiment. 
+Datasets containing trial configuration and participant response data can be found within the respective `data_master.csv` files within each Experiment data subfolder.
+
 
 ### **1.1 Manipulations Checks**
 

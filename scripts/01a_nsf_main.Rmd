@@ -41,6 +41,10 @@ library(sjPlot)      # required for `tab_model(model)`, which provides a formatt
 
 library(DHARMa)      # required for residual inspection
 
+# Source helper functions script
+source("helper-functions.R")
+
+
 # Miscellaneous libraries not used
 # library(piecewiseSEM)
 
@@ -306,28 +310,37 @@ ggsave(
 
 ## Accuracy model
 
-```{r}
-# Subset without noBrainers
-nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible trials
 
+```{r calculate-entropy}
+# Create entropy variable
+nsf.data.exNB$entropy <- 0
+for (row_x in 1:nrow(nsf.data.exNB)){
+  prob1 <- nsf.data.exNB[row_x, PosteriorProb]
+  prob2 <- 1-prob1
+  nsf.data.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+
+```
+
+```{r}
 
 # Build accuracy model
-m.nsf.ACC1 <- glmer(
-  IsCorrect ~ 1 + Session + entropy + Condition + LogBaserate + LogLLA+ (1|PtID), 
+m.nsf.ACC <- glmer(
+  IsCorrect ~ 1 + Session + entropy + Condition + (1|PtID), 
   family = binomial('logit'),
   data = nsf.data.exNB
 )
 
-m.nsf.ACC2 <- glmer(
-  IsCorrect ~ 1 + Session + entropy + LogBaserate LogLLA+ (1|PtID), 
-  family = binomial('logit'),
-  data = nsf.data.exNB
-)
 
 
 # Print model summary
-summary(m.nsf.ACC1)
-tab_model(m.nsf.ACC1)
+summary(m.nsf.ACC)
+tab_model(m.nsf.ACC, show.est = T, show.se = T, show.std = T, std.response = F, transform = NULL, digits = 3) 
+tab_model(m.nsf.ACC, show.est = T, show.se = T, digits = 3)
+ 
+# Get marginal mean prob of accurate response in each condition
+emmeans(m.nsf.ACC, specs ="Condition", type = "response")
 
 ```
 
@@ -394,39 +407,44 @@ sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);pl
 ### Plot Decision Weights
 
 ```{r, echo = FALSE}
-nsf.data.DW <- tibble(.rows = 6)
-nsf.data.DW$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
-nsf.data.DW$information <-  c(rep(c("Evidence", "Base Rate"), 3))
 
+# Create DW datatable
+condition   <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
+information <- c(rep(c("Evidence", "Base Rate"), 3))
+nsf.data.DW <- data.frame(condition, information)
 
-nsf.data.DW$ coefficients <- c(0.71187, 1.38736,
-                                        (0.711873 - 0.02729), (1.387346 - 0.0147 ),
-                                        (0.711873 - 0.15188), (1.387346 - 0.21893)
-                                        )
+nsf.data.DW$coefficients <- c( 0.71187, 1.38736, 
+                              (0.711873 - 0.02729), (1.387346 - 0.0147 ), 
+                              (0.711873 - 0.15188), (1.387346 - 0.21893))
 
+nsf.data.DW$ci_lower<- c(0.6392888, 1.2548631,
+                         0.5613523, 1.1481704,
+                         0.4401318, 0.9502206)
 
-nsf.data.DW$ci_lower <- c(0.6392888, 1.2548631,
-                                   0.5613523, 1.1481704,
-                                   0.4401318, 0.9502206);
 
 nsf.data.DW$ci_upper <- c(0.7844538490, 1.5198590053,
-                                   0.8078151152, 1.597176358,
-                                   0.6798578593, 1.386698082);
-  
-nsf.data.DW$condition <- factor(nsf.data.DW$condition, levels = c("WR","SR","TSD"))
-nsf.data.DW$information <- factor(nsf.data.DW$information, levels = c("Base Rate", "Evidence"))
+                           0.8078151152, 1.597176358,
+                           0.6798578593, 1.386698082)
 
 
-plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients, shape = information)) + 
-  geom_point(size=  3, aes(shape = information)) +                          
-  scale_y_continuous(limits = c(0, 2)) +                                      # Sets y axis range      
-  labs(x = "Condition", y = "Decision Weight", shape = "Information", title = "Experiment 1") +        # Changes labels (axis titles and legend title)
+nsf.data.DW <- nsf.data.DW %>% setDT()
+# Factorise variables
+nsf.data.DW[,condition:=factor(nsf.data.DW$condition, levels = c("WR","SR","TSD"))]
+nsf.data.DW[,information:= factor(nsf.data.DW$information, levels = c("Base Rate", "Evidence"))]
+
+# Plotting
+plot.nsf.DW <- ggplot(nsf.data.DW, aes(x=condition, y=coefficients, shape=information)) + 
+  geom_point(size=2, aes(shape = information)) +                          
+  scale_y_continuous(limits = c(0, 2)) +                                                          # Sets y axis range      
+  labs(x = "Condition", y = "Decision Weight", shape = "Information", title = "Experiment 1") +   # Changes labels (axis titles and legend title)
   
-  scale_shape_manual(values = c(17, 19)) +
+  # scale_shape_manual(values = c(17, 19)) +
   # scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("#696969", "#3E424B"))+
   
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.15, linewidth = 1)+ # Add error bars
-  theme_bw(base_size = 15) + theme(aspect.ratio =  1.8, axis.title = element_text(size = 15), axis.text = element_text(size = 15), panel.border = element_rect(linewidth = 2))  
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
+                color = '#595959', width = 0.15, linewidth = .5, position= "identity")+ # Add error bars
+  theme_pubr() + theme(aspect.ratio = 1.8)
+
 
 # Save as png with transparent background
 ggsave(plot = plot.nsf.DW,
@@ -438,155 +456,80 @@ ggsave(plot = plot.nsf.DW,
 
 ```
 
+
+### Plot Relative Decision Weights
+
+```{r rdw-plots}
+
+compute_RDW <- function(b1, b2){
+  RDW <- (b1-b2)/(b1+b2)
+  return(RDW)
+}
+
+for (cond_x in unique(nsf.data.DW$condition)){
+  rdw <- nsf.data.DW[condition == cond_x , compute_RDW(coefficients[1], coefficients[2])]
+  nsf.data.DW[condition == cond_x , RDW:= rdw]
+}
+
+nsf.data.DW$RDW[, RDW:=compute_RDW(coefficients[1], coefficients[2]), by = condition]
+
+nsf.plot.RDW <- ggplot(nsf.data.DW %>% distinct(., condition, .keep_all = T), aes(x = condition, y = RDW)) + 
+
+
+
+```
+
 ------------------------------------------------------------------------
 
 # RT Analyses
+
+
+
+## Prepare data for RT analyses
 
 ```{r, echo = FALSE}
 
 # Convert RT to numeric
 nsf.data.exNB$RT <- as.numeric(nsf.data.exNB$RT)
 
+
+# Create Log RT variable
+nsf.data.exNB[,logRT:=log(RT)]
+nsf.data.exNB[RT > 0,logRT_zscore:=z_score(logRT)]
+
+
+```
+
+For Experiment 1, trials with 5/6 or 1/6 odds are always paired with number of black balls indicating the 'correct' box is contrary to what the odds suggest. That is,  5/6 odds are always paired with draws of 0, 1, or 2 black balls, and likewise, 1/6 odds trials are always paired with 3, 4, or 5 black balls. Running a model LogRT where LogBaserate is among the covariates would provide the counterintuitive finding that higher LogBaserates are always associated with longer reaction times, when in fact, the conflicting information sources on these trials induce a higher amount of uncertainty. \
+
+To control for the amount of uncertainty induced by conflicting information sources, we first compute the Shannon entropy for each trial which captures the amount of uncertainty on each trial. Entropy values range from 0 to 1, where 1 would indicate maximum uncertainty on a given trial.  Shannon entropy is computed based off the *posterior probability* of each box being the one that was selected, so theoretically, values of entropy also captures some of the information inherent within both Base Rate and Evidence. 
+
+
+
+## Build RT models
+
+```{r build-rt-models}
+# Subset without noBrainers
+nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible trials
+
 # Create LogBaserate and LogLLA strength by factorising/taking absolute values
 nsf.data.exNB[,LLAstrength:=factor(abs(LogLLA), levels = c(0, 1.38629436111989, 2.77258872223978, 4.15888308335967), labels = c("none", "low", "mid", "high"))]
 nsf.data.exNB[,LBRstrength:=factor(abs(LogBaserate), levels = c(0, 0.693147180559947, 1.6094379124341), labels = c("low", "mid", "high"))]
 
-# Create logRT variable3
-nsf.data.exNB.rt <- nsf.data.exNB[RT>0]
-nsf.data.exNB.rt[,logRT:=log(RT)]
 
-# Create z score for log RT
-z_score <- function(x){
-  z <- (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
-  return(z)
-}
-
-nsf.data.exNB.rt[,logRT_zscore:=z_score(logRT)]
-
-# Build model with log transformation of RT
-m.nsf.rt <- lmer(logRT~ 1 + Condition*LBRstrength + Condition*LLAstrength + (1|PtID), data = nsf.data.exNB.rt[logRT_zscore>-3.29])
-
-# drop interactions as all n.s.
-m.nsf.rt <- lmer(logRT ~ 1 + Condition + LBRstrength + LLAstrength + (1 |PtID), data = nsf.data.exNB.rt[logRT_zscore > -3.29])
-
-```
-
-Stronger base rate and likelihood information seems to result in longer RTs, which is surprising. Could it be due to amount of uncertainty?
-
-```{r}
-
-# Formula for shannon entropy
-calc_entropy <- function(prob_vector) {
-  # Check if the input is a vector of length 2
-  if ( length(prob_vector) != 2) {
-    stop("Input must be a vector of length 2 containing probability values.")
-  }
-  
-  # Check if the probabilities sum up to 1
-  if (abs(sum(prob_vector) - 1) > 1e-8) {
-    stop("Probabilities must sum up to 1.")
-  }
-  
-  # Calculate Shannon's entropy
-  H <- -sum(prob_vector * log2(prob_vector))
-  return(H)
-}
-
-# Calculate shannon's entropy 
-
-nsf.data.exNB$entropy <- 0
-for (row_x in 1:nrow(nsf.data.exNB)){
-  prob1 <- nsf.data.exNB[row_x, PosteriorProb]
-  prob2 <- 1-prob1
-  nsf.data.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
-}
-
-# include entropy main effect
-m.nsf.rt <- lmer(RT ~ 1 + Condition + entropy + LBRstrength + LLAstrength + (1 + LBRstrength |PtID), 
-                 data = nsf.data.exNB.rt[logRT_zscore > -3.29 ])
-m.nsf.rt2 <- lmer(logRT ~ 1 + Condition + entropy + LBRstrength + LLAstrength + (1|PtID), 
-                 data = nsf.data.exNB.rt[logRT_zscore > -3.29 & LLAstrength != "high"])
+# Build model of LogRT, excluding extreme outliers outside z-score of +- 3.29 (only outliers at z < -3.29 exist).
+# Data also consists of 24 trials with anomalous 0 values in RT (logRT would be Inf), so those are dropped from analysis
+m.nsf.rt <- lmer(logRT~ 1 + Condition*LBRstrength + Condition*LLAstrength + entropy + Session +  (1|PtID), 
+                 data = nsf.data.exNB[logRT_zscore>-3.29 & RT > 0])
 
 
-```
+# Since all interaction terms were n.s., rebuild model dropping interactions as all n.s.
+m.nsf.rt <- lmer(logRT ~ 1 + Condition + LBRstrength + LLAstrength + entropy + Session +(1 |PtID), 
+                                  data = nsf.data.exNB[logRT_zscore>-3.29 & RT > 0])
 
-Weird that high LBR strength = longer reaction times. Running a model below that looks at the effect of no blk balls on the logRT, for only trials with *high* LBR strength. Results show that when NoBlkBall = 5, participants talke significantly longer to make decision. 
-
-``` {r}
-
-# Get distribution of high  LBRstrength trials according to no. black balls
-table(nsf.data.exNB.rt[logRT_zscore > -3.29 & LBRstrength == "high"]$NoBlkBall)/nrow(nsf.data.exNB.rt[logRT_zscore > -3.29 & LBRstrength == "high"])*100
-table(nsf.data.exNB.rt[logRT_zscore > -3.29 & LBRstrength == "high"]$NoBlkBall)
-
-m.nsf.bb <- lmer(logRT ~  1 + factor(NoBlkBall) + (1|PtID), data = nsf.data.exNB.rt[logRT_zscore > -3.29 & LBRstrength == "high"])
-m.nsf.bb2 <- lmer(logRT ~ 1 + factor(NoBlkBall) + (1|PtID), data = nsf.data.exNB.rt[logRT_zscore>-3.29 & LogBaserate == min(LogBaserate)])
-m.nsf.bb3 <- lmer(logRT ~ 1 + factor(NoBlkBall) + (1|PtID), data = nsf.data.exNB.rt[logRT_zscore>-3.29 & round(LogBaserate,2) ==  0.69])
-
-summary(m.nsf.bb3)
-
-# It turns out that trials with 5/6 or 1/6 are always paired with NoBlkBalls that suggest the opposite information. Call the two tables below to check the distribution of NoBlkBalls on trials with max or min LogBaserate. 
-table(nsf.data.exNB.rt[logRT_zscore>-3.29 & LogBaserate == max(LogBaserate)]$NoBlkBall)
-table(nsf.data.exNB.rt[logRT_zscore>-3.29 & LogBaserate == min(LogBaserate)]$NoBlkBall)
-
-# This is the same for trials with 2/6 or 4/6 odds
-table(nsf.data.exNB.rt[logRT_zscore>-3.29 & round(LogBaserate,2) == .69]$NoBlkBall)
-table(nsf.data.exNB.rt[logRT_zscore>-3.29 & round(LogBaserate,2) == -.69]$NoBlkBall)
-
-```
-
-
----
-
-# Test
-
-```{r}
-nsf.data <- as.data.table(nsf.data)
-nsf.data[,LBRstrength:=abs(LogBaserate)]
-nsf.data[,LLAstrength:=abs(LogLLA)]
-nsf.copy <- copy(nsf.data)
-nsf.copy <- nsf.copy[RT!=0]
-nsf.copy[,logRT := log(as.numeric(RT))]
-
-nsf.copy$entropy <- 0
-for (row_x in 1:nrow(nsf.copy)){
-  prob1 <- nsf.copy[row_x, PosteriorProb]
-  prob2 <- 1-prob1
-  nsf.copy[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
-}
-
-
-test.rt <-lmer(logRT ~ 1 + poly(LBRstrength,2) + LLAstrength + Condition + entropy + (1 |PtID), data = nsf.copy)
-
-
-# ggplot(nsf.copy, aes(x=RT, fill=as.factor(LBRstrength))) + geom_boxplot() + theme_pubr() 
-
-
-```
-
-```{r}
-plot.nsf.LLAs <- ggplot(data = nsf.data.exNB.rt, aes(x = LLAstrength, fill = LLAstrength)) + 
-  geom_bar() + facet_grid(.~ LBRstrength) + theme_pubr()
-
-plot.nsf.LBRs <- ggplot(data = nsf.data.exNB.rt, aes(x = LBRstrength, fill = LBRstrength)) +
-  geom_bar(color = "black") + facet_grid(.~LLAstrength) + theme_pubr() 
-
-plot.nsf.rt.bxp1 <- ggplot(nsf.data.exNB.rt[logRT_zscore>-3.29], aes(x = Condition, y = logRT, group = Condition)) +
-  geom_boxplot(aes(fill=Condition)) + geom_point(position = position_jitter(width = 0.1)) + facet_grid(.~ LBRstrength)
-
-plot.nsf.rt.bxp2 <- ggplot(nsf.data.exNB.rt[logRT_zscore>-3.29], aes(x=LBRstrength, y = logRT, group = LBRstrength)) +
-  geom_boxplot(aes(fill = LBRstrength)) + facet_grid(.~ Condition) + theme_pubr()
-
-plot.nsf.rt.full <- ggplot(nsf.copy[z_score(logRT)>-3.29], aes(x=LBRstrength, y = logRT, group = LBRstrength)) +
-  geom_boxplot(aes(fill = LBRstrength)) + facet_grid(.~ Condition) +theme_pubr()
-
-
-nsf.copy[,LBRstrength:=factor(LBRstrength, levels=sort(unique(LBRstrength)), labels = c(1, 2, 3, 4, 5))]
-
-# plot.nsf.rt.bxp1 <- ggplot(nsf.copy, aes(x = LBRstrength, y = RT, group = LBRstrength)) +
-#   geom_boxplot(aes(fill=LBRstrength))  + theme_pubr()
-  # facet_grid(.~ Condition) 
-  # geom_point(position = position_jitter(width = 0.1))
-
+# Inspect model summary
+sjPlot::tab_model(m.nsf.rt)
+summary(m.nsf.rt)
 
 ```
 

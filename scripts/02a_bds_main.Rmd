@@ -38,6 +38,11 @@ library(sjPlot)      # required for `tab_model(model)`, which provides a formatt
 
 library(DHARMa)      # required for residual inspection
 
+
+# Source helper functions script
+source("helper-functions.R")
+
+
 # # Other reserve libraries
 # library(piecewiseSEM)
 
@@ -351,36 +356,43 @@ ggsave(
 
 ```{r,echo=FALSE}
 
-# Create Order variable to represent no. of times participant has done the task
-bds.data.WRSR.exNB$Order <- ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "AM", 1,
-                                   ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "PM", 2, 
-                                          ifelse (bds.data.WRSR.exNB$NormalFirst == 0 & bds.data.WRSR.exNB$SessionTime == "AM", 3 , 4)))
+bds.data.WRSR.exNB$entropy <- 0
+
+for (row_x in 1:nrow(bds.data.WRSR.exNB)){
+  prob1 <- bds.data.WRSR.exNB[row_x, "post_prob"]
+  prob2 <- 1-prob1
+  bds.data.WRSR.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+
 
 # Accuracy model excluding NoBrainer trials
 m.bds.ACC1<-glmer(
-  IsCorrect~ 1 + Order + Condition + SessionTime + LogBaserate + LogLLA +  (1|PtID),
+  IsCorrect~ 1 + Order + entropy  + Condition  +  SessionTime + (1|PtID),
   family = binomial("logit"),
   bds.data.WRSR.exNB
   );
 
 m.bds.ACC2<-glmer(
-  IsCorrect~ 1 + Order + Condition*SessionTime + LogBaserate + LogLLA + (1|PtID),
+  IsCorrect~ 1 + Order + entropy + Condition*SessionTime + (1|PtID),
   family = binomial("logit"),
   bds.data.WRSR.exNB
   );
 
-anova(m.bds.ACC1, m.bds.ACC2)
+m.bds.ACC3<-glmer(
+  IsCorrect~ 1 + Order + entropy*Condition*SessionTime + (1|PtID),
+  family = binomial("logit"),
+  bds.data.WRSR.exNB
+  );
 
-# Get R-squared
-r.squaredGLMM(m.bds.ACC1)
 
-# Check collinearity
-check_collinearity(m.bds.ACC)
-
+# Model comparisons
+anova(m.bds.ACC1, m.bds.ACC2, m.bds.ACC3)
 
 # Model output in APA style
 tab_model(
   m.bds.ACC1,
+  transform = NULL,  #Uncomment if raw log odds estimates needed
   show.est = TRUE,
   show.se = TRUE,
   string.se = "SE",
@@ -389,12 +401,11 @@ tab_model(
   digits = 3
 );
 
-tab_model(m.bds.ACC1)
-# Get accuracy least-square estimates
-bds.data.ACC <- emmeans(m.bds.ACC1, 
-                                spec = c("Condition", "SessionTime"),  
-                                by = c("Condition"), type = "response"
-                                );
+# Get marginal mean probabilities
+ emmeans(m.bds.ACC1, 
+         spec = c("Condition", "SessionTime"),  
+         by = c("Condition"), type = "response"
+         );
 
 bds.data.ACC <- as_tibble(bds.data.ACC);   # Coerce to tibble
 
@@ -598,16 +609,8 @@ rm(condition);rm(session);rm(information);rm(coefficients);rm(se_lower);rm(se_up
 ---
 # RT Analyses
 
-```{r}
+```{r RT-analyses prep}
 
-# Create log RTs
-bds.data.WRSR.AM.exNB <- as.data.table(bds.data.WRSR.AM.exNB)
-bds.data.WRSR.AM.exNB[, RT:=as.numeric(RT)]
-bds.data.WRSR.AM.exNB[, logRT:=log(RT)]
-
-bds.data.WRSR.PM.exNB <- as.data.table(bds.data.WRSR.PM.exNB)
-bds.data.WRSR.PM.exNB[, RT:=as.numeric(RT)]
-bds.data.WRSR.PM.exNB[, logRT:=log(RT)]
 
 # Create LLA and LBR strengths
 bds.data.WRSR.AM.exNB[, LLAstrength:=as.factor(abs(LogLLA))]
@@ -630,55 +633,65 @@ for (row_x in 1:nrow(bds.data.WRSR.PM.exNB)){
   bds.data.WRSR.PM.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
 }
 
+# Create Order variable
+bds.data.WRSR.AM.exNB$Order <- ifelse(bds.data.WRSR.AM.exNB$NormalFirst == 1 & bds.data.WRSR.AM.exNB$SessionTime == "AM", 1,
+                                   ifelse(bds.data.WRSR.AM.exNB$NormalFirst == 1 & bds.data.WRSR.AM.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.AM.exNB$NormalFirst == 0 & bds.data.WRSR.AM.exNB$SessionTime == "AM", 3 , 4)))
+bds.data.WRSR.PM.exNB$Order <- ifelse(bds.data.WRSR.PM.exNB$NormalFirst == 1 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 1,
+                                   ifelse(bds.data.WRSR.PM.exNB$NormalFirst == 1 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.PM.exNB$NormalFirst == 0 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 3 , 4)))
+
+
+# Create Order variable to represent no. of times participant has done the task
+bds.data.WRSR.exNB$Order <- ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "AM", 1,
+                                   ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.exNB$NormalFirst == 0 & bds.data.WRSR.exNB$SessionTime == "AM", 3 , 4)))
+
+# Create log RTs
+bds.data.WRSR.AM.exNB[, RT:=as.numeric(RT)]
+bds.data.WRSR.AM.exNB[, logRT:=log(RT)]
+
+bds.data.WRSR.PM.exNB[, RT:=as.numeric(RT)]
+bds.data.WRSR.PM.exNB[, logRT:=log(RT)]
+
 # Build RT models
 
-m.bds.AM.rt <- lmer(logRT ~ 1 + Condition + entropy + LBRstrength + LLAstrength + (1 |PtID), data = bds.data.WRSR.AM.exNB)
-m.bds.PM.rt <- lmer(logRT ~ 1 + Condition + entropy + LBRstrength + LLAstrength + (1|PtID), data = bds.data.WRSR.PM.exNB)
 
-check_collinearity(m.bds.AM.rt)
+m1.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + LBRstrength + LLAstrength + (1 |PtID), data = bds.data.WRSR.AM.exNB)
+m2.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (1 |PtID), data = bds.data.WRSR.AM.exNB)
+m3.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (Condition |PtID), data = bds.data.WRSR.AM.exNB)
+m1.bds.PM.rt <-lmer(logRT ~ 1 + entropy + Order + LBRstrength + LLAstrength + (1 |PtID), data = bds.data.WRSR.PM.exNB)
+m2.bds.PM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (1 |PtID), data = bds.data.WRSR.PM.exNB)
+
+
+# Check model fits
+anova(m1.bds.AM.rt, m2.bds.AM.rt, m3.bds.AM.rt )
+anova(m1.bds.PM.rt, m2.bds.PM.rt)
+
+# Print model summary of best-fitting models
+tab_model(m2.bds.AM.rt, show.se = T, digits = 4)
+tab_model(m2.bds.PM.rt, show.se = T, digits = 3)
+
+check_collinearity(m1.bds.AM.rt)
 
 
 ```
 
 
-Same as NSF analyses, test if no. blk balls at high levels of LBRstrength affects RT
+Same as NSF analyses, check distribution of black balls presented on trials with max LBR strength
 
 
 ```{r}
 
-# Get distribution of high LBRstrength trials according to no. of black balls
-table(bds.data.WRSR.AM.exNB[LBRstrength == 2.197224577]$NoBlkBall)/nrow(bds.data.WRSR.AM.exNB[LBRstrength == 2.197224577]) * 100
+# Get distribution of no blk balls on high LBRstrength trials
 table(bds.data.WRSR.AM.exNB[LBRstrength == 2.197224577]$NoBlkBall)
+table(bds.data.WRSR.PM.exNB[LBRstrength == 2.197224577]$NoBlkBall)
 
-# Get distirbution of high LogBaserate trials according to no. of black balls
-table(bds.data.WRSR.AM.exNB[LogBaserate == 2.197224577]$NoBlkBall)
-table(bds.data.WRSR.AM.exNB[LogBaserate == -2.197224577]$NoBlkBall)
-
-# Black ball model
-m.bds.bb <- lmer(logRT ~ 1 + factor(NoBlkBall) + (1|PtID), data = bds.data.WRSR.AM.exNB[LBRstrength == 2.197224577])
-m.bds.bb2 <- lmer(logRT~ 1 + factor(NoBlkBall) + (1|PtID), data = bds.data.WRSR.AM.exNB[LogBaserate == 2.197224577])
-
-summary(m.bds.bb)
+summary(m.bds.bb2)
 
 ```
 
-
-
-
-```{r}
-
-bds.data.WRSR.AM
-
-bds.data.WRSR.AM <- as.data.table(bds.data.WRSR.AM)
-bds.data.WRSR.AM[,LBRstrength:=abs(LogBaserate)]
-bds.data.WRSR.AM[,LLAstrength:=abs(LogLLA)]
-bds.data.WRSR.AM[,logRT := log(RT)]
-
-test.rt <-lmer(logRT ~ 1 + LBRstrength + LLAstrength + Condition + (1 |PtID), data = bds.data.WRSR.AM)
-
-```
-
-
+Compared to NSF, trials on BDS with high LBRstrength present LLAstrength across the range and do not deliberately induce high uncertainty in participants. This likely accounts for the opposing results of the RT models when it comes to LBRstrength coefficients. On BDS, high LBR strength tends to be associated with lower reaction times, rather than higher. \
 
 
 # END

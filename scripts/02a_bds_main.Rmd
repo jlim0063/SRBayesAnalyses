@@ -12,6 +12,7 @@ date: '2022-11-01'
 library(dplyr)   
 library(tidyr)
 library(readxl)      # required for read_excel() method
+library(data.table)
 
 
 ## Visualisation libraries
@@ -24,6 +25,7 @@ library(egg)         # required for ggarrange (panelling multiple ggplots)
 ## Modelling
 library(lme4)        # required for `lmer() and glmer()` methods
 library(lmerTest)    # required for p-value approximations
+library(performance) # check for collinearity using check_collinearity()
 
 library(emmeans)     # required to retrieve least-square estimates, using `lsmeans()` and `emmeans`
 
@@ -35,6 +37,11 @@ library(performance) # required for check_collinearity function
 library(sjPlot)      # required for `tab_model(model)`, which provides a formatted output of the model in APA style.
 
 library(DHARMa)      # required for residual inspection
+
+
+# Source helper functions script
+source("helper-functions.R")
+
 
 # # Other reserve libraries
 # library(piecewiseSEM)
@@ -52,7 +59,7 @@ options(scipen = 20)
 ```{r,echo=FALSE}
 
 # Read bds.data
-bds.data <- read.csv("../data/exp2_BDS_study_data/data_master.csv")
+bds.data <- as.data.table(read.csv("../data/exp2_BDS_study_data/data_master.csv"))
 
 # Check for duplicates
 bds.data[duplicated(bds.data),]
@@ -329,17 +336,17 @@ bds.plot.KSS.lsmeans <- ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y =  l
   scale_fill_manual(values = c("#F1F1F1", "#7B7B7B")) +
   scale_y_continuous(limits = c(0, 8)) +
   labs(x = "Session Time", y = "KSS score") + 
-  geom_errorbar(aes(ymin = bds.data.KSS.lsmeans$lower.CL, ymax = bds.data.KSS.lsmeans$upper.CL), color = "#222021", width = 0.2, linewidth = 1, position = position_dodge(.9))+
-  theme_classic() + 
-  theme(aspect.ratio = 0.9, axis.line = element_line(colour = 'black', linewidth = 2), axis.title = element_text(size = 18), axis.text = element_text(size = 15), legend.title  = element_text(size = 15), legend.text = element_text(size = 12)) 
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), color = "#222021", width = 0.2, linewidth = 1, position = position_dodge(.9))+
+  theme_pubr() +  # theme_classic() +
+  theme(aspect.ratio = 1, axis.line = element_line(colour = 'black', linewidth = 2), axis.title = element_text(size = 20), axis.text = element_text(size = 20), legend.title  = element_text(size = 18), legend.text = element_text(size = 18)) 
   # geom_text(aes(label = round(lsmean, 2)), position = position_dodge(1), vjust = -5, size = 5.5)
 
 # Save as png with transparent background
-# ggsave(
-#   plot = bds.plot.KSS.lsmeans,
-#   filename = "img/bds/BDS_KSS_score.png",
-#   bg = "transparent"
-#   )
+ggsave(
+  plot = bds.plot.KSS.lsmeans,
+  filename = "../img/bds/BDS_KSS_score.png",
+  bg = "transparent"
+  )
 
 
 ```
@@ -349,49 +356,56 @@ bds.plot.KSS.lsmeans <- ggplot(bds.data.KSS.lsmeans, aes(x = SessionTime, y =  l
 
 ```{r,echo=FALSE}
 
-# Create Order variable to represent no. of times participant has done the task
-bds.data.WRSR.exNB$Order <- ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "AM", 1,
-                                   ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "PM", 2, 
-                                          ifelse (bds.data.WRSR.exNB$NormalFirst == 0 & bds.data.WRSR.exNB$SessionTime == "AM", 3 , 4)))
+bds.data.WRSR.exNB$entropy <- 0
+
+for (row_x in 1:nrow(bds.data.WRSR.exNB)){
+  prob1 <- bds.data.WRSR.exNB[row_x, "post_prob"]
+  prob2 <- 1-prob1
+  bds.data.WRSR.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+
 
 # Accuracy model excluding NoBrainer trials
 m.bds.ACC1<-glmer(
-  IsCorrect~ 1 + Order + Condition + SessionTime + (1|PtID),
+  IsCorrect~ 1 + Order + entropy  + Condition  +  SessionTime + (1|PtID),
   family = binomial("logit"),
   bds.data.WRSR.exNB
   );
 
 m.bds.ACC2<-glmer(
-  IsCorrect~ 1 + Order + Condition*SessionTime + (1|PtID),
+  IsCorrect~ 1 + Order + entropy + Condition*SessionTime + (1|PtID),
   family = binomial("logit"),
   bds.data.WRSR.exNB
   );
 
-anova(m.bds.ACC1, m.bds.ACC2)
+m.bds.ACC3<-glmer(
+  IsCorrect~ 1 + Order + entropy*Condition*SessionTime + (1|PtID),
+  family = binomial("logit"),
+  bds.data.WRSR.exNB
+  );
 
-# Get R-squared
-r.squaredGLMM(m.bds.ACC)
 
-# Check collinearity
-check_collinearity(m.bds.ACC)
-
+# Model comparisons
+anova(m.bds.ACC1, m.bds.ACC2, m.bds.ACC3)
 
 # Model output in APA style
 tab_model(
-  m.bds.ACC,
-  # show.est = TRUE,
+  m.bds.ACC1,
+  transform = NULL,  #Uncomment if raw log odds estimates needed
+  show.est = TRUE,
   show.se = TRUE,
   string.se = "SE",
   string.ci = "95% CI",
-  string.est = "Estimate",
+  # string.est = "Estimate",
   digits = 3
-  );
+);
 
-# Get accuracy least-square estimates
-bds.data.ACC <- lsmeans(m.bds.ACC1, 
-                                spec = c("Condition", "SessionTime"),  
-                                by = c("Condition"), type = "response"
-                                );
+# Get marginal mean probabilities
+ emmeans(m.bds.ACC1, 
+         spec = c("Condition", "SessionTime"),  
+         by = c("Condition"), type = "response"
+         );
 
 bds.data.ACC <- as_tibble(bds.data.ACC);   # Coerce to tibble
 
@@ -425,7 +439,7 @@ plot.bds.ACC <- plot.bds.ACC + facet_wrap(~SessionTime, ncol = 2) +theme(strip.t
 ### Check Residuals
 
 ```{r,echo=FALSE}
-sim_output <- simulateResiduals(m.bds.ACC, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
+sim_output <- simulateResiduals(m.bds.ACC1, plot = F); plotQQunif(sim_output); plotResiduals(sim_output)
 
 ```
 
@@ -574,22 +588,111 @@ plot.bds.DW <- ggplot(data = bds.temp.DW, aes( x = condition, y = coefficients ,
   labs(x = "Condition", y = "Decision Weight", shape = "Information")+
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),linewidth = 1, color = '#595959', width = 0.1)+ # Add error bars
   theme_bw(base_size = 18) + 
-  theme(aspect.ratio =  2,  axis.title = element_text(size=15), axis.text=element_text(size=15),
+  theme(aspect.ratio =  2.4,  axis.title = element_text(size=15), axis.text=element_text(size=15),
         legend.text=element_text(size=15), legend.title = element_text(size = 15))  
 
 # Facet wrap plots
-plot.bds.DW <- plot.bds.DW  + facet_wrap(~session, ncol = 2) + theme(strip.text = element_text(size = 15), panel.border = element_rect(size = 2));
+plot.bds.DW <- plot.bds.DW  + facet_wrap(~session, ncol = 2) + 
+  theme(strip.text = element_text(size = 15), panel.border = element_rect(linewidth = 2))+ ggtitle("Experiment 2"); 
 
 
 # Save as png with transparent background
-# ggsave( plot = plot.bds.DW,
-#         filename = "img/bds/BDS_decisionWeights.png",
-#         bg = "transparent")
+ggsave( plot = plot.bds.DW,
+        filename = "../img/bds/BDS_decisionWeights.png",
+        bg = "transparent")
 
 # Remove placeholder variables
 rm(condition);rm(session);rm(information);rm(coefficients);rm(se_lower);rm(se_upper);rm(ci_lower);rm(ci_upper);rm(bds.temp.DW)
 
 ```
+
+---
+# RT Analyses
+
+```{r RT-analyses prep}
+
+
+# Create LLA and LBR strengths
+bds.data.WRSR.AM.exNB[, LLAstrength:=as.factor(abs(LogLLA))]
+bds.data.WRSR.AM.exNB[, LBRstrength:=as.factor(abs(LogBaserate))]
+bds.data.WRSR.PM.exNB[, LLAstrength:=as.factor(abs(LogLLA))]
+bds.data.WRSR.PM.exNB[, LBRstrength:=as.factor(abs(LogBaserate))]
+
+# Calculate entropy
+bds.data.WRSR.AM.exNB$entropy <- 0
+for (row_x in 1:nrow(bds.data.WRSR.AM.exNB)){
+  prob1 <- bds.data.WRSR.AM.exNB[row_x, post_prob]
+  prob2 <- 1-prob1
+  bds.data.WRSR.AM.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+bds.data.WRSR.PM.exNB$entropy <- 0
+for (row_x in 1:nrow(bds.data.WRSR.PM.exNB)){
+  prob1 <- bds.data.WRSR.PM.exNB[row_x, post_prob]
+  prob2 <- 1-prob1
+  bds.data.WRSR.PM.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+# Create Order variable
+bds.data.WRSR.AM.exNB$Order <- ifelse(bds.data.WRSR.AM.exNB$NormalFirst == 1 & bds.data.WRSR.AM.exNB$SessionTime == "AM", 1,
+                                   ifelse(bds.data.WRSR.AM.exNB$NormalFirst == 1 & bds.data.WRSR.AM.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.AM.exNB$NormalFirst == 0 & bds.data.WRSR.AM.exNB$SessionTime == "AM", 3 , 4)))
+bds.data.WRSR.PM.exNB$Order <- ifelse(bds.data.WRSR.PM.exNB$NormalFirst == 1 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 1,
+                                   ifelse(bds.data.WRSR.PM.exNB$NormalFirst == 1 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.PM.exNB$NormalFirst == 0 & bds.data.WRSR.PM.exNB$SessionTime == "PM", 3 , 4)))
+
+
+# Create Order variable to represent no. of times participant has done the task
+bds.data.WRSR.exNB$Order <- ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "AM", 1,
+                                   ifelse(bds.data.WRSR.exNB$NormalFirst == 1 & bds.data.WRSR.exNB$SessionTime == "PM", 2, 
+                                          ifelse (bds.data.WRSR.exNB$NormalFirst == 0 & bds.data.WRSR.exNB$SessionTime == "AM", 3 , 4)))
+
+# Create log RTs
+bds.data.WRSR.AM.exNB[, RT:=as.numeric(RT)]
+bds.data.WRSR.AM.exNB[, logRT:=log(RT)]
+
+bds.data.WRSR.PM.exNB[, RT:=as.numeric(RT)]
+bds.data.WRSR.PM.exNB[, logRT:=log(RT)]
+
+# Build RT models
+
+
+m1.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + LBRstrength + LLAstrength + (1 |PtID), data = bds.data.WRSR.AM.exNB)
+m2.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (1 |PtID), data = bds.data.WRSR.AM.exNB)
+m3.bds.AM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (Condition |PtID), data = bds.data.WRSR.AM.exNB)
+m1.bds.PM.rt <-lmer(logRT ~ 1 + entropy + Order + LBRstrength + LLAstrength + (1 |PtID), data = bds.data.WRSR.PM.exNB)
+m2.bds.PM.rt <-lmer(logRT ~ 1 + entropy + Order + Condition*LBRstrength + Condition*LLAstrength+ (1 |PtID), data = bds.data.WRSR.PM.exNB)
+
+
+# Check model fits
+anova(m1.bds.AM.rt, m2.bds.AM.rt, m3.bds.AM.rt )
+anova(m1.bds.PM.rt, m2.bds.PM.rt)
+
+# Print model summary of best-fitting models
+tab_model(m2.bds.AM.rt, show.se = T, digits = 4)
+tab_model(m2.bds.PM.rt, show.se = T, digits = 3)
+
+check_collinearity(m1.bds.AM.rt)
+
+
+```
+
+
+Same as NSF analyses, check distribution of black balls presented on trials with max LBR strength
+
+
+```{r}
+
+# Get distribution of no blk balls on high LBRstrength trials
+table(bds.data.WRSR.AM.exNB[LBRstrength == 2.197224577]$NoBlkBall)
+table(bds.data.WRSR.PM.exNB[LBRstrength == 2.197224577]$NoBlkBall)
+
+summary(m.bds.bb2)
+
+```
+
+Compared to NSF, trials on BDS with high LBRstrength present LLAstrength across the range and do not deliberately induce high uncertainty in participants. This likely accounts for the opposing results of the RT models when it comes to LBRstrength coefficients. On BDS, high LBR strength tends to be associated with lower reaction times, rather than higher. \
+
 
 # END
 

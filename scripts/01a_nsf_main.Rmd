@@ -1,6 +1,5 @@
 ---
 title: "**NSF study Main Data Analyses**"
-
 ---
 
 ### Load libraries
@@ -11,14 +10,19 @@ title: "**NSF study Main Data Analyses**"
 
 ## Data wrangling
 library(dplyr)   
+library(data.table)
 library(tidyr)
 library(readxl)      # required for read_excel() method
 library(glue)
 
+
+
 ## Visualisation libraries
 library(ggplot2)
+library(ggpubr)
 library(visreg)
 library(ggsignif)    # For significance bars on ggplots
+library(ggpubr)
 
 library(egg)         # required for ggarrange (panelling multiple ggplots)
 
@@ -36,6 +40,10 @@ library(performance) # required for check_collinearity function
 library(sjPlot)      # required for `tab_model(model)`, which provides a formatted output of the model in APA style.
 
 library(DHARMa)      # required for residual inspection
+
+# Source helper functions script
+source("helper-functions.R")
+
 
 # Miscellaneous libraries not used
 # library(piecewiseSEM)
@@ -60,14 +68,14 @@ lm.beta.lmer <- function(mod) {
 
 ```
 
----
+------------------------------------------------------------------------
 
 # Data Management Pt 1
 
 ```{r,echo=FALSE, results = "hide"}
 
 # Read data
-nsf.data <- read_excel("../data/exp1_NSF_study_data/data_master.xlsx")
+nsf.data <- as.data.table(read_excel("../data/exp1_NSF_study_data/data_master.xlsx"))
 
 # Check for duplicates
 nsf.data <- nsf.data[duplicated(nsf.data) == FALSE,]
@@ -84,6 +92,7 @@ nsf.data$Session <- factor(nsf.data$Session,
 ```
 
 # Data Management Pt 2
+
 Inspecting the participant IDs show that there are some participants who did not complete both WR and their assigned conditions.
 
 ## Participant ID breakdown
@@ -114,15 +123,7 @@ setdiff(wr_pts, c(sr_pts, tsd_pts)) # Participants with WR trials data, but miss
 # need to look at 41 again
 ```
 
-From inspection of eligibility data:
-- Data for #41 needs to be dropped completely due to not meeting age criteria. 
-- The following data should be dropped due to idiosyncratic reasons for malperformance on task (e.g. fell asleep during task)
-  - All trials for Participants 13, 22, 45
-  - TSD trials for Participant 15
-  - SR trials for Participant 22
-  - WR trials for Participant 58
-
-
+From inspection of eligibility data: - Data for #41 needs to be dropped completely due to not meeting age criteria. - The following data should be dropped due to idiosyncratic reasons for malperformance on task (e.g. fell asleep during task) - All trials for Participants 13, 22, 45 - TSD trials for Participant 15 - SR trials for Participant 22 - WR trials for Participant 58
 
 ```{r, echo = FALSE}
 
@@ -182,7 +183,7 @@ rm(a)
 
 ```
 
----
+------------------------------------------------------------------------
 
 # Data Management Pt 3
 
@@ -221,8 +222,7 @@ nsf.data <- nsf.data[!nsf.data$PtID %in% nsf.ineligible_pts, ]
 
 ```
 
-
----
+------------------------------------------------------------------------
 
 # Analyses
 
@@ -237,6 +237,8 @@ nsf.data.KSS <- distinct(nsf.data, PtID, Condition, .keep_all = TRUE)
 ```
 
 ```{r, echo = FALSE}
+
+
 length(unique(nsf.data.KSS$PtID))
 # Check KSS distribution
 plot.nsf.KSS.hist   <- ggplot(nsf.data.KSS, aes(x = KSS)) + geom_density()
@@ -253,7 +255,9 @@ m.nsf.KSS <- lmer(KSS ~ 1 + Condition+ (1|PtID), nsf.data.KSS)
 tab_model(m.nsf.KSS)
 
 ```
+
 ### Normality of Residuals check
+
 ```{r}
 
 # Check residuals
@@ -264,7 +268,7 @@ sim_output <- simulateResiduals(m.nsf.KSS, plot = F); plotQQunif(sim_output);plo
 
 ### Plot KSS model
 
-``` {r, echo = FALSE}
+```{r, echo = FALSE}
 
 nsf.data.KSS.lsmeans <- as_tibble(lsmeans(m.nsf.KSS, specs = "Condition")) %>% 
   slice(match(c("WR", "SR", "TSD"), Condition)) %>%                  # Rearrange such that order is WR, SR, TSD
@@ -276,37 +280,67 @@ nsf.plot.KSS.lsmeans <- ggplot(nsf.data.KSS.lsmeans, aes(x = Condition, y = lsme
   geom_col(fill = c("#999DA0", "#777B7E", "#C7C6C1"), colour = "black", linewidth =1) +
   scale_y_continuous(limits = c(0, 8)) +
   labs(x = "Condition", y = "KSS score") + 
-  geom_errorbar(aes(ymin = nsf.data.KSS.lsmeans$lower.CL, ymax = nsf.data.KSS.lsmeans$upper.CL), color = "#222021", width = 0.2, linewidth = 1)+
-  theme_classic() + theme(aspect.ratio = .75, axis.title = element_text(size = 18),  axis.text = element_text(size = 18), axis.line = element_line(linewidth = 2)) 
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), color = "#222021", width = 0.2, linewidth = 1)+
+  theme_pubr() +
+  #theme_classic() + 
+  theme(aspect.ratio = .8, axis.title = element_text(size = 20),  axis.text = element_text(size = 20), axis.line = element_line(linewidth = 2)) 
   # geom_text(aes(label = round(lsmean, 2)), position = position_dodge(1), vjust = -5, size = 5.5)
 
 
 # Save plot
-# ggsave(
-#   plot = nsf.plot.KSS.lsmeans,
-#   filename = "img/nsf/KSS_score.png",
-#   bg = "transparent"
-#   )
+ggsave(
+  plot = nsf.plot.KSS.lsmeans,
+  filename = "../img/nsf/nsf_KSS_score.png",
+  bg = "transparent"
+  )
 
+
+
+# (Only run at end) combined plots
+library(cowplot)
+combined.plot.KSS.lsmeans <- plot_grid(nsf.plot.KSS.lsmeans, bds.plot.KSS.lsmeans)
+
+ggsave(
+  plot = combined.plot.KSS.lsmeans, 
+  filename = "../img/combined_KSS_score.png",
+  bg = "transparent"
+)
 
 ```
 
 ## Accuracy model
 
-```{r}
-# Subset without noBrainers
-nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible pts
 
+```{r calculate-entropy}
+# Create entropy variable
+nsf.data.exNB$entropy <- 0
+for (row_x in 1:nrow(nsf.data.exNB)){
+  prob1 <- nsf.data.exNB[row_x, PosteriorProb]
+  prob2 <- 1-prob1
+  nsf.data.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
+}
+
+
+```
+
+```{r}
 
 # Build accuracy model
 m.nsf.ACC <- glmer(
-  IsCorrect ~ 1 + Session + Condition + (1|PtID), 
+  IsCorrect ~ 1 + Session + entropy + Condition + (1|PtID), 
   family = binomial('logit'),
   data = nsf.data.exNB
 )
 
+
+
 # Print model summary
 summary(m.nsf.ACC)
+tab_model(m.nsf.ACC, show.est = T, show.se = T, show.std = T, std.response = F, transform = NULL, digits = 3) 
+tab_model(m.nsf.ACC, show.est = T, show.se = T, digits = 3)
+ 
+# Get marginal mean prob of accurate response in each condition
+emmeans(m.nsf.ACC, specs ="Condition", type = "response")
 
 ```
 
@@ -339,7 +373,6 @@ nsf.plot.ACC <- ggplot(nsf.data.ACC, aes(x = factor(Condition, levels = c("WR","
 
 ```
 
-
 ## Pooled probit model (Decision Weights)
 
 ```{r}
@@ -371,55 +404,133 @@ sim_output <- simulateResiduals(m.nsf.exNB, plot = F); plotQQunif(sim_output);pl
 
 ```
 
-
 ### Plot Decision Weights
 
 ```{r, echo = FALSE}
 
+# Create DW datatable
+condition   <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
+information <- c(rep(c("Evidence", "Base Rate"), 3))
+nsf.data.DW <- data.frame(condition, information)
 
-nsf.data.DW <- tibble(.rows = 6)
-nsf.data.DW$condition <-  c("WR", "WR", "TSD", "TSD", "SR", "SR")
-nsf.data.DW$information <-  c(rep(c("Evidence", "Base Rate"), 3))
+nsf.data.DW$coefficients <- c( 0.71187, 1.38736, 
+                              (0.711873 - 0.02729), (1.387346 - 0.0147 ), 
+                              (0.711873 - 0.15188), (1.387346 - 0.21893))
 
+nsf.data.DW$ci_lower<- c(0.6392888, 1.2548631,
+                         0.5613523, 1.1481704,
+                         0.4401318, 0.9502206)
 
-nsf.data.DW$ coefficients <- c(0.71187, 1.38736,
-                                        (0.711873 - 0.02729), (1.387346 - 0.0147 ),
-                                        (0.711873 - 0.15188), (1.387346 - 0.21893)
-                                        )
-
-
-nsf.data.DW$ci_lower <- c(0.6392888, 1.2548631,
-                                   0.5613523, 1.1481704,
-                                   0.4401318, 0.9502206);
 
 nsf.data.DW$ci_upper <- c(0.7844538490, 1.5198590053,
-                                   0.8078151152, 1.597176358,
-                                   0.6798578593, 1.386698082);
-  
-nsf.data.DW$condition <- factor(nsf.data.DW$condition, levels = c("WR","SR","TSD"))
-nsf.data.DW$information <- factor(nsf.data.DW$information, levels = c("Base Rate", "Evidence"))
+                           0.8078151152, 1.597176358,
+                           0.6798578593, 1.386698082)
 
 
-plot.nsf.DW <- ggplot(data = nsf.data.DW, aes( x = condition, y = coefficients, shape = information)) + 
-  geom_point(size=  3, aes(shape = information)) +                          
-  scale_y_continuous(limits = c(0, 2)) +                                      # Sets y axis range      
-  labs(x = "Condition", y = "Decision Weight", shape = "Information") +        # Changes labels (axis titles and legend title)
+nsf.data.DW <- nsf.data.DW %>% setDT()
+# Factorise variables
+nsf.data.DW[,condition:=factor(nsf.data.DW$condition, levels = c("WR","SR","TSD"))]
+nsf.data.DW[,information:= factor(nsf.data.DW$information, levels = c("Base Rate", "Evidence"))]
+
+# Plotting
+plot.nsf.DW <- ggplot(nsf.data.DW, aes(x=condition, y=coefficients, shape=information)) + 
+  geom_point(size=2, aes(shape = information)) +                          
+  scale_y_continuous(limits = c(0, 2)) +                                                          # Sets y axis range      
+  labs(x = "Condition", y = "Decision Weight", shape = "Information", title = "Experiment 1") +   # Changes labels (axis titles and legend title)
   
-  scale_shape_manual(values = c(17, 19)) +
+  # scale_shape_manual(values = c(17, 19)) +
   # scale_color_manual(labels = c("Draw Outcome", "Base Rate Odds"), values = c("#696969", "#3E424B"))+
   
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), color = '#595959', width = 0.2)+ # Add error bars
-  theme_bw(base_size = 15) + theme(aspect.ratio =  1.2, axis.title = element_text(size = 15), axis.text = element_text(size = 15), panel.border = element_rect(linewidth = 2))  
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
+                color = '#595959', width = 0.15, linewidth = .5, position= "identity")+ # Add error bars
+  theme_pubr() + theme(aspect.ratio = 1.8)
+
 
 # Save as png with transparent background
-# ggsave(plot = plot.nsf.DW,
-#        filename = "img/nsf/NSF_decisionWeights.png",
-#        bg = "transparent");
+ggsave(plot = plot.nsf.DW,
+       filename = "../img/nsf/NSF_decisionWeights.png",
+       bg = "transparent");
 
 
 
 
 ```
 
+
+### Plot Relative Decision Weights
+
+```{r rdw-plots}
+
+compute_RDW <- function(b1, b2){
+  RDW <- (b1-b2)/(b1+b2)
+  return(RDW)
+}
+
+for (cond_x in unique(nsf.data.DW$condition)){
+  rdw <- nsf.data.DW[condition == cond_x , compute_RDW(coefficients[1], coefficients[2])]
+  nsf.data.DW[condition == cond_x , RDW:= rdw]
+}
+
+nsf.data.DW$RDW[, RDW:=compute_RDW(coefficients[1], coefficients[2]), by = condition]
+
+nsf.plot.RDW <- ggplot(nsf.data.DW %>% distinct(., condition, .keep_all = T), aes(x = condition, y = RDW)) + 
+
+
+
+```
+
+------------------------------------------------------------------------
+
+# RT Analyses
+
+
+
+## Prepare data for RT analyses
+
+```{r, echo = FALSE}
+
+# Convert RT to numeric
+nsf.data.exNB$RT <- as.numeric(nsf.data.exNB$RT)
+
+
+# Create Log RT variable
+nsf.data.exNB[,logRT:=log(RT)]
+nsf.data.exNB[RT > 0,logRT_zscore:=z_score(logRT)]
+
+
+```
+
+For Experiment 1, trials with 5/6 or 1/6 odds are always paired with number of black balls indicating the 'correct' box is contrary to what the odds suggest. That is,  5/6 odds are always paired with draws of 0, 1, or 2 black balls, and likewise, 1/6 odds trials are always paired with 3, 4, or 5 black balls. Running a model LogRT where LogBaserate is among the covariates would provide the counterintuitive finding that higher LogBaserates are always associated with longer reaction times, when in fact, the conflicting information sources on these trials induce a higher amount of uncertainty. \
+
+To control for the amount of uncertainty induced by conflicting information sources, we first compute the Shannon entropy for each trial which captures the amount of uncertainty on each trial. Entropy values range from 0 to 1, where 1 would indicate maximum uncertainty on a given trial.  Shannon entropy is computed based off the *posterior probability* of each box being the one that was selected, so theoretically, values of entropy also captures some of the information inherent within both Base Rate and Evidence. 
+
+
+
+## Build RT models
+
+```{r build-rt-models}
+# Subset without noBrainers
+nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible trials
+
+# Create LogBaserate and LogLLA strength by factorising/taking absolute values
+nsf.data.exNB[,LLAstrength:=factor(abs(LogLLA), levels = c(0, 1.38629436111989, 2.77258872223978, 4.15888308335967), labels = c("none", "low", "mid", "high"))]
+nsf.data.exNB[,LBRstrength:=factor(abs(LogBaserate), levels = c(0, 0.693147180559947, 1.6094379124341), labels = c("low", "mid", "high"))]
+
+
+# Build model of LogRT, excluding extreme outliers outside z-score of +- 3.29 (only outliers at z < -3.29 exist).
+# Data also consists of 24 trials with anomalous 0 values in RT (logRT would be Inf), so those are dropped from analysis
+m.nsf.rt <- lmer(logRT~ 1 + Condition*LBRstrength + Condition*LLAstrength + entropy + Session +  (1|PtID), 
+                 data = nsf.data.exNB[logRT_zscore>-3.29 & RT > 0])
+
+
+# Since all interaction terms were n.s., rebuild model dropping interactions as all n.s.
+m.nsf.rt <- lmer(logRT ~ 1 + Condition + LBRstrength + LLAstrength + entropy + Session +(1 |PtID), 
+                                  data = nsf.data.exNB[logRT_zscore>-3.29 & RT > 0])
+
+# Inspect model summary
+sjPlot::tab_model(m.nsf.rt)
+summary(m.nsf.rt)
+
+```
 
 END

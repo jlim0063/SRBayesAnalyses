@@ -7,4 +7,5 @@
 output/
 bayes_graph.xlsx
 old/
+data/exp2_BDS_study_data/raw_acti_data./*.rtf
 

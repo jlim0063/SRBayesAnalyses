@@ -17,6 +17,10 @@ calc_entropy <- function(prob_vector) {
   }
   
   # Calculate Shannon's entropy
-  H <- -sum(prob_vector * log2(prob_vector))
+  temp <- prob_vector*log2(prob_vector)
+  if (NaN %in% temp){
+    temp <- c(0, 0)
+  }
+  H <- -sum(temp)
   return(H)
 }

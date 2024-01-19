@@ -90,15 +90,15 @@ bds.data$SessionTime <- factor(bds.data$SessionTime,
 ```{r, echo=FALSE}
 
 # Read in data
-bds.temp.csl <- read_excel("../data/exp2_BDS_study_data/cumulative_sleep_lost_tabulation.xlsx", sheet= 1)
+bds.temp.csl <- read_excel("../data/exp2_BDS_study_data/cumulative_sleep_lost_tabulation.xlsx", sheet= 1) %>% as.data.table()
 
 # Create new cumulativeSleepLost variable in the main dataset
-bds.data$cumulativeSleepLost = NA
+bds.data$cumulativeSleepLost = as.double()
 
 # Merge cumulative sleep loss into respective participants in master dataset
 
 for (id in unique(bds.data[bds.data$Condition == "SR", ]$PtID)){
-  bds.data[bds.data$PtID == id, "cumulativeSleepLost"] = bds.temp.csl[bds.temp.csl$ID == id, "cumulativeSleepLost"]
+  bds.data[bds.data$PtID == id, "cumulativeSleepLost"] <- bds.temp.csl[bds.temp.csl$ID == id, "cumulativeSleepLost"]
 }
 
 # Clear bds.temp.csl from global
@@ -131,6 +131,11 @@ bds.data.WRCM.PM = subset(bds.data.WRCM, SessionTime == 'PM')
 # -----------------------------------------------------------------------
 bds.data.WRSR.exNB    <- subset(bds.data.WRSR, NoBrainers == 0 )
 bds.data.WRCM.exNB    <- subset(bds.data.WRCM, NoBrainers == 0 )
+# Create Order column 
+bds.data.WRSR.exNB[,Order:=ifelse(Condition == "WR" & NormalFirst ==1, 1, ifelse(
+  Condition == "SR" & NormalFirst == 0, 1, 2
+))]
+
 # Split each subset into AM and PM sessions
 bds.data.WRSR.AM.exNB <- subset(bds.data.WRSR.exNB, SessionTime == 'AM')
 bds.data.WRSR.PM.exNB <- subset(bds.data.WRSR.exNB, SessionTime == 'PM')
@@ -159,11 +164,11 @@ bds.data.WRCM.hard.PM <- subset(bds.data.WRCM.hard, SessionTime == 'PM')
 
 ```{r}
 
-# Create tibble for demographics
-bds.data.demographics        <- tibble(.rows = 41)
+# Create dt for demographics
+bds.data.demographics        <- data.table()
 bds.data.demographics$PtID   <- unique(bds.data.WRSR.exNB$PtID)
-bds.data.demographics$sex    <- NA
-bds.data.demographics$age    <- NA
+bds.data.demographics[, sex := as.character()]
+bds.data.demographics[, age := as.numeric()]
 
 
 # Read in original demographic dataframe and store in a temporary dataframe
@@ -178,7 +183,33 @@ for (id in bds.data.demographics$PtID){
 # Remove temporary dataframe
 rm(bds.temp.demographics)
 
+```
 
+## Get breakdown of demographics 
+
+```{r}
+
+## Write demogrpahics into bds.data.WRSR
+bds.data.WRSR[, sex := as.character()]
+bds.data.WRSR[, age := as.numeric()]
+
+for (id_x in unique(bds.data.WRSR$PtID)){
+  sex_x <-  bds.data.demographics[PtID == id_x, sex]
+  age_x <-  bds.data.demographics[PtID == id_x, age]
+  bds.data.WRSR[PtID == id_x, sex:=sex_x]
+  bds.data.WRSR[PtID == id_x, age:=age_x]
+}
+
+rm(age_x);rm(sex_x)
+
+## Get N, M and SD of demographics by condition
+bds.data.WRSR.temp <- distinct(bds.data.WRSR, PtID, Condition, age, sex)
+distinct(bds.data.WRSR.temp, PtID, .keep_all =T)[, age] %>% sjmisc::descr()
+
+bds.data.WRSR.temp [, .(length(age), mean(age), sd(age)), by = "Condition"] 
+nrow(bds.data.WRSR.temp[Condition == "WR" & sex == "F"])/nrow(bds.data.WRSR.temp[Condition == "WR"])
+nrow(bds.data.WRSR.temp[Condition == "SR" & sex == "F"])/nrow(bds.data.WRSR.temp[Condition == "SR"])
+rm(bds.data.WRSR.temp)
 ```
 
 
@@ -186,6 +217,15 @@ rm(bds.temp.demographics)
 ---
 
 # Analyses 
+
+```{r}
+
+## Calculate demographic M and Sd by condition
+bds.data.WRSR[Condition == "WR" ," age"] %>% sjmisc::descr()
+
+
+```
+
 
 ### Count number of participants who were assigned SR
 
@@ -203,7 +243,7 @@ length(unique(
 ```{r}
 
 # Subset only necessary variables
-bds.data.WRSR.KSS <-bds.data.WRSR[c("PtID", "SessionTime", "Condition", "StartKSS")]
+bds.data.WRSR.KSS <-bds.data.WRSR[,c("PtID", "SessionTime", "Condition", "StartKSS")]
 
 # Keep unique values
 bds.data.WRSR.KSS <- distinct(bds.data.WRSR.KSS)
@@ -356,13 +396,15 @@ ggsave(
 
 ```{r,echo=FALSE}
 
-bds.data.WRSR.exNB$entropy <- 0
+bds.data.WRSR.exNB$entropy <- as.double()
 
 for (row_x in 1:nrow(bds.data.WRSR.exNB)){
-  prob1 <- bds.data.WRSR.exNB[row_x, "post_prob"]
+  
+  prob1 <- bds.data.WRSR.exNB[row_x, "post_prob"] %>% as.double()
   prob2 <- 1-prob1
   bds.data.WRSR.exNB[row_x, "entropy"] <- calc_entropy(c(prob1, prob2))
 }
+
 
 
 
@@ -402,9 +444,10 @@ tab_model(
 );
 
 # Get marginal mean probabilities
- emmeans(m.bds.ACC1, 
+bds.data.ACC <- emmeans(m.bds.ACC1, 
          spec = c("Condition", "SessionTime"),  
-         by = c("Condition"), type = "response"
+         # by = c("Condition"),
+         type = "response"
          );
 
 bds.data.ACC <- as_tibble(bds.data.ACC);   # Coerce to tibble
@@ -521,8 +564,6 @@ m.bds.WRSR.PM.exNB <- glmer(
   );
 
 
-
-
 # Print summary & confint
 summary(m.bds.WRSR.PM.exNB); confint(m.bds.WRSR.PM.exNB, method = "Wald");
 
@@ -539,8 +580,6 @@ tab_model(m.bds.WRSR.PM.exNB,
           string.se = "SE", string.ci = "95% CI", string.est = "Estimate",
           digits = 3, digits.p = 3, digits.rsq = 3, digits.re = 3
           );
-
-
 
 
 ```

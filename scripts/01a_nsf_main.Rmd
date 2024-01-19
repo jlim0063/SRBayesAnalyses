@@ -135,11 +135,11 @@ nsf.ineligible_pts <- c(13, 22, 41, 45)
 ## Extract & concatenate participant `KSS` data
 
 ```{r, echo=FALSE, results = "hide"}
-nsf.temp.KSS <- read.csv("../data/exp1_NSF_study_data/KSS_data.csv")
+nsf.temp.KSS <- read.csv("../data/exp1_NSF_study_data/KSS_data.csv") %>% as.data.table()
 nsf.temp.KSS <- nsf.temp.KSS[ , c("Subject", "Condition", 'KSS_wr', 'KSS_sl')];
 
 # Create new KSS column in nsf.data
-nsf.data$KSS <- NA;
+nsf.data$KSS <- as.integer();
 pt_list      <-  unique(nsf.data$PtID);
 
 # Loop through participant ids and extract KSS values from `nsf.kss.data`
@@ -147,8 +147,8 @@ for (id in pt_list){
   if(id %in% nsf.temp.KSS$Subject){
     KSS.WR <- nsf.temp.KSS[nsf.temp.KSS$Subject == id, ]$KSS_wr
     KSS.SL <- nsf.temp.KSS[nsf.temp.KSS$Subject == id, ]$KSS_sl
-    nsf.data[nsf.data$PtID == id & nsf.data$Condition == "WR", ]$KSS             <- KSS.WR
-    nsf.data[nsf.data$PtID == id & nsf.data$Condition %in% c("TSD", "SR"), ]$KSS <- KSS.SL
+    nsf.data[nsf.data$PtID == id & nsf.data$Condition == "WR"]$KSS             <- KSS.WR
+    nsf.data[nsf.data$PtID == id & nsf.data$Condition %in% c("TSD", "SR")]$KSS <- KSS.SL
     print(glue("KSS data for Subject ID {id} added."))
   } else {
     print(glue("No KSS data for Subject ID {id} found."))
@@ -225,6 +225,26 @@ nsf.data <- nsf.data[!nsf.data$PtID %in% nsf.ineligible_pts, ]
 ------------------------------------------------------------------------
 
 # Analyses
+
+
+## Get demographic breakdown
+
+```{r}
+
+
+
+## Get N, M and SD of demographics by condition
+nsf.data.temp <- distinct(nsf.data, PtID, Condition, age, sex)
+distinct(nsf.data.temp, PtID, .keep_all = T)[, age] %>% sjmisc::descr()
+distinct(nsf.data.temp, PtID, .keep_all = T)[, sex] %>% table()
+
+
+nsf.data.temp [, .(length(age), mean(age), sd(age)), by = "Condition"] 
+nrow(nsf.data.temp[Condition == "WR" & sex == "F"])/nrow(nsf.data.temp[Condition == "WR"])
+nrow(nsf.data.temp[Condition == "SR" & sex == "F"])/nrow(nsf.data.temp[Condition == "SR"])
+nrow(nsf.data.temp[Condition == "TSD" & sex == "F"])/nrow(nsf.data.temp[Condition == "TSD"])
+
+```
 
 ## KSS model
 
@@ -307,9 +327,29 @@ ggsave(
 )
 
 ```
+## Exclude nobrainer trials
+
+```{r}
+# Subset without noBrainers
+nsf.data.exNB     <- nsf.data[nsf.data$NoBrainer == 0, ] # Remove ineligible trials
+
+```
+
+## Check demogrpahics of TSD and SR groups
+
+```{r}
+
+nsf.data.SRpts <-distinct(nsf.data.exNB[Condition == "SR"], PtID, sex, age, .keep_all = F)
+nsf.data.TSDpts <-distinct(nsf.data.exNB[Condition == "TSD"], PtID, sex, age, .keep_all = F)
+
+sjmisc::descr(nsf.data.SRpts$age)
+sjmisc::descr(nsf.data.TSDpts$age)
+table(nsf.data.SRpts$sex)
+table(nsf.data.TSDpts$sex)
+
+```
 
 ## Accuracy model
-
 
 ```{r calculate-entropy}
 # Create entropy variable
@@ -385,13 +425,15 @@ nsf.plot.ACC <- ggplot(nsf.data.ACC, aes(x = factor(Condition, levels = c("WR","
 
 
 #Build pooled model that excludes NoBrainer trials
-m.nsf.exNB <- glmer(PtResp ~ 1 + Condition*LogBaserate + Condition*LogLLA + 
+m.nsf.exNB <- glmer(PtResp ~ 1 + Condition + LogBaserate + LogLLA + Condition:LogBaserate + Condition:LogLLA + 
                     (1  |PtID),             
                   family = binomial('probit'),
                   nsf.data.exNB);
 
+
 # Print model summary
 summary(m.nsf.exNB)
+
 
 ```
 
